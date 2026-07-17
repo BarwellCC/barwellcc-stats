@@ -1,0 +1,29 @@
+{
+  "name": "barwellcc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node test/run-test.js && node test/matchPlayers.test.js",
+    "sync": "node scripts/sync-playcricket.js",
+    "match-players": "node scripts/matchPlayers.js",
+    "dev": "node server/index.js",
+    "start": "node server/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "node-fetch": "^2.7.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
+  }
+}

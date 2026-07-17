@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barwell CC — Averages (visual refresh mockup)</title>
+<script>
+// Applied before paint so a stored preference doesn't flash the other theme.
+(function(){
+  var stored = localStorage.getItem('barwellcc-theme');
+  if(stored === 'dark' || stored === 'light') document.documentElement.setAttribute('data-theme', stored);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    --pitch-green: #1E3A2B;
+    --pitch-green-dark: #142A1E;
+    --cream: #F6F1E4;
+    --bg-page: #F6F1E4;
+    --card: #FFFDF8;
+    --row-even: #F5EFE1;
+    --head-bg: #EDE7D6;
+    --ink: #201E18;
+    --ink-soft: #5B5548;
+    --maroon: #7A2E2E;
+    --accent: #7A2E2E;
+    --brass: #B8923A;
+    --brass-bright: #D4AF5A;
+    --line: #E1D8C0;
+    --line-strong: #CBBE9C;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+      --line: #2E3D33; --line-strong: #415447;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+    --line: #2E3D33; --line-strong: #415447;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"]{ color-scheme: light; }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* ============ MOBILE-FIRST BASE STYLES ============ */
+  body{
+    margin:0;
+    background: var(--bg-page);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background .15s ease, color .15s ease;
+  }
+  .page{ max-width: 980px; margin: 0 auto; padding: 0 12px 48px; }
+
+  /* ---- Shared site nav (Fixtures / Stats / Averages) + theme toggle ---- */
+  .site-nav{ display:flex; align-items:stretch; background: var(--pitch-green-dark); margin: 0 -12px; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .site-nav-links{ display:flex; flex:1; }
+  .site-nav-links a{
+    flex: 1 1 0; text-align:center; padding: 11px 8px;
+    font-family:'Inter'; font-weight:600; font-size: 12px; letter-spacing:0.05em; text-transform:uppercase;
+    color: rgba(246,241,228,0.62); text-decoration:none; border-bottom: 2px solid transparent;
+  }
+  .site-nav-links a:hover{ color: var(--cream); }
+  .site-nav-links a.active{ color: var(--brass-bright); border-bottom-color: var(--brass); }
+  .theme-toggle{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width: 42px; border:none; border-left: 1px solid rgba(255,255,255,0.1);
+    background: transparent; color: rgba(246,241,228,0.62); cursor:pointer; padding:0;
+  }
+  .theme-toggle:hover{ color: var(--brass-bright); }
+  .theme-toggle svg{ width:16px; height:16px; }
+  .theme-toggle .icon-sun{ display:none; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun{ display:block; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon{ display:none; }
+  }
+  :root[data-theme="dark"] .theme-toggle .icon-sun{ display:block; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon{ display:none; }
+
+  /* ---- Controls: stacked full-width on mobile ---- */
+  .filter-row{
+    display:flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 18px;
+    margin-bottom: 18px;
+  }
+  .filter-group{ display:flex; flex-direction:column; gap:5px; }
+  .filter-label{
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  /* ---- Multi-select dropdown ---- */
+  .msel{ position:relative; }
+  .msel-btn{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width: 100%;
+    font-family:'Inter'; font-size: 14px; font-weight: 600;
+    padding: 9px 12px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  .msel-btn:hover{ border-color: var(--pitch-green); }
+  .msel.open .msel-btn{ border-color: var(--pitch-green); }
+  .msel-arrow{ font-size: 9px; color: var(--ink-soft); transition: transform .15s ease; flex-shrink:0; }
+  .msel.open .msel-arrow{ transform: rotate(180deg); }
+  .msel-panel{
+    display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20;
+    background: var(--card); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(20,42,30,0.16); padding: 8px;
+    max-height: 280px; overflow-y: auto;
+  }
+  .msel.open .msel-panel{ display:block; }
+  .msel-actions{ display:flex; gap:12px; padding: 4px 6px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .msel-action{ background:none; border:none; padding:0; font-size: 11.5px; font-weight: 700; color: var(--accent); cursor: pointer; }
+  .msel-action:hover{ text-decoration: underline; }
+  .msel-item{ display:flex; align-items:center; gap:8px; padding: 8px 6px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+  .msel-item:hover{ background: rgba(30,58,43,0.06); }
+  .msel-item input{ accent-color: var(--pitch-green); width: 16px; height: 16px; flex-shrink:0; }
+
+  /* ---- Section / table card ---- */
+  .section-label{
+    font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 8px 2px;
+  }
+  .card{
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+  }
+  .table-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius: var(--radius); }
+  .table-scroll::after{
+    content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
+    background: linear-gradient(to right, transparent, rgba(20,42,30,0.10));
+    opacity:0; transition: opacity .15s ease; pointer-events:none;
+  }
+  .table-scroll.has-scroll::after{ opacity:1; }
+  table{ width: 100%; min-width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th{
+    text-align: right; font-family: 'Inter'; font-weight: 600; font-size: 10.5px;
+    letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-soft);
+    padding: 10px 8px; border-bottom: 1px solid var(--line-strong);
+    background: var(--head-bg); cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th:first-child, td.name{ text-align: left; }
+  thead th:hover{ color: var(--pitch-green); }
+  thead th .arrow{ display:inline-block; width: 9px; opacity: 0.35; font-size: 9px; }
+  thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
+  tbody td{
+    padding: 9px 8px; text-align: right; font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap;
+  }
+  tbody tr:last-child td{ border-bottom: none; }
+  tbody tr:nth-child(even){ background: var(--row-even); }
+
+  /* Sticky first column - matters most on mobile where the table scrolls horizontally */
+  thead th:first-child{ position: sticky; left:0; z-index:3; background: var(--head-bg); }
+  tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
+  tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
+
+  tbody tr.top-row td.name{ position: relative; }
+  tbody tr.top-row td.name::before{
+    content:""; position:absolute; left:0; top:6px; bottom:6px; width: 3px;
+    background: var(--brass); border-radius: 2px;
+  }
+  tbody tr.top-row td.name{ padding-left: 14px; font-weight: 600; }
+  td.name{ font-weight: 500; }
+  .not-out{ color: var(--accent); font-weight: 600; }
+
+  .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -8px; margin-bottom: 24px; line-height:1.5; }
+
+  /* ============ LARGER SCREENS ============ */
+  @media (min-width: 640px){
+    .page{ padding: 0 20px 64px; }
+    .site-nav{ margin: 0 -20px; }
+    .site-nav-links a{ flex: none; padding: 12px 26px; font-size: 12.5px; }
+
+    .filter-row{ flex-direction: row; align-items:center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+    .filter-group{ flex-direction: row; align-items:center; gap:8px; }
+    .filter-group.season-group{ margin-left: auto; }
+    .msel-btn{ width:auto; min-width:152px; }
+    #teamSelect .msel-btn{ min-width: 200px; }
+    #seasonSelect .msel-btn{ min-width: 110px; }
+
+    .section-label{ font-size: 13px; letter-spacing: 0.12em; margin: 0 0 10px 2px; }
+    table{ font-size: 13.5px; }
+    thead th{ font-size: 11.5px; padding: 12px 10px; }
+    tbody td{ padding: 9px 10px; }
+    .note{ font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="site-nav">
+    <div class="site-nav-links">
+      <a href="fixtures.html">Fixtures</a>
+      <a href="averages.html" class="active">Averages</a>
+      <a href="stats.html">Stats</a>
+    </div>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </nav>
+
+  <div class="filter-row">
+    <div class="filter-group">
+      <span class="filter-label">Team</span>
+      <div class="msel" id="teamSelect">
+        <button type="button" class="msel-btn"><span class="msel-label">1st XI</span><span class="msel-arrow">▾</span></button>
+        <div class="msel-panel"></div>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Fixture Type</span>
+      <div class="msel" id="compSelect">
+        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+        <div class="msel-panel"></div>
+      </div>
+    </div>
+
+    <div class="filter-group season-group">
+      <span class="filter-label">Season</span>
+      <div class="msel" id="seasonSelect">
+        <button type="button" class="msel-btn"><span class="msel-label">2025</span><span class="msel-arrow">▾</span></button>
+        <div class="msel-panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Batting</div>
+  <div class="card">
+    <div class="table-scroll" id="battingScroll">
+      <table id="battingTable">
+        <thead><tr id="battingHead"></tr></thead>
+        <tbody id="battingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-label">Bowling</div>
+  <div class="card">
+    <div class="table-scroll" id="bowlingScroll">
+      <table id="bowlingTable">
+        <thead><tr id="bowlingHead"></tr></thead>
+        <tbody id="bowlingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">Mockup only — Team and Season support picking one or several; tap any column heading to sort. Swipe a table sideways on a phone to see every column (the player name stays put).</div>
+
+</div>
+
+<script>
+// Real Barwell CC 1st XI, 2025 League data, as currently shown on the Hitssports averages page.
+const batting = [
+  {name:"Adam Stapleford-Jones", m:20, i:20, no:6, runs:861, high:"112*", avg:61.50, fours:113, sixes:3, hundreds:4, fifties:4, ct:12, st:0},
+  {name:"Ahad Saiyed", m:10, i:10, no:3, runs:427, high:"142*", avg:61.00, fours:46, sixes:17, hundreds:2, fifties:0, ct:1, st:0},
+  {name:"Kyle Chamberlain", m:15, i:14, no:4, runs:447, high:"93*", avg:44.70, fours:64, sixes:1, hundreds:0, fifties:3, ct:3, st:0},
+  {name:"Phil Crouch", m:18, i:11, no:1, runs:297, high:"78", avg:29.70, fours:37, sixes:2, hundreds:0, fifties:2, ct:7, st:0},
+  {name:"Guy Norris", m:4, i:2, no:1, runs:28, high:"22", avg:28.00, fours:2, sixes:1, hundreds:0, fifties:0, ct:1, st:0},
+  {name:"James Millinship", m:17, i:11, no:4, runs:192, high:"35", avg:27.43, fours:23, sixes:0, hundreds:0, fifties:0, ct:2, st:0},
+  {name:"Liam O'Rourke", m:19, i:13, no:5, runs:188, high:"49*", avg:23.50, fours:14, sixes:9, hundreds:0, fifties:0, ct:5, st:0},
+  {name:"Pavan Singh", m:6, i:3, no:1, runs:46, high:"22", avg:23.00, fours:8, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
+  {name:"Danny Moran", m:21, i:16, no:2, runs:317, high:"65", avg:22.64, fours:40, sixes:4, hundreds:0, fifties:2, ct:21, st:2},
+  {name:"Max Hines", m:4, i:3, no:0, runs:64, high:"24", avg:21.33, fours:10, sixes:0, hundreds:0, fifties:0, ct:1, st:0},
+  {name:"George Rolfe", m:22, i:9, no:4, runs:103, high:"21", avg:20.60, fours:12, sixes:2, hundreds:0, fifties:0, ct:4, st:0},
+  {name:"Oliver Richings", m:21, i:20, no:0, runs:412, high:"77", avg:20.60, fours:60, sixes:0, hundreds:0, fifties:3, ct:3, st:0},
+  {name:"Sam Taylor", m:1, i:1, no:0, runs:15, high:"15", avg:15.00, fours:3, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
+  {name:"Jack Smith", m:17, i:13, no:0, runs:192, high:"51", avg:14.77, fours:26, sixes:3, hundreds:0, fifties:1, ct:2, st:0},
+  {name:"Ady Baker", m:21, i:5, no:4, runs:14, high:"9*", avg:14.00, fours:2, sixes:0, hundreds:0, fifties:0, ct:4, st:0},
+  {name:"Lee Skene", m:13, i:5, no:2, runs:20, high:"15*", avg:6.67, fours:2, sixes:0, hundreds:0, fifties:0, ct:3, st:0},
+  {name:"Thomas Middleton", m:2, i:1, no:0, runs:4, high:"4", avg:4.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:1, st:0},
+  {name:"Brad Harvey", m:7, i:4, no:1, runs:8, high:"4*", avg:2.67, fours:0, sixes:0, hundreds:0, fifties:0, ct:3, st:0},
+  {name:"Nick Hines", m:2, i:1, no:0, runs:1, high:"1", avg:1.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
+  {name:"Ben Betteridge", m:1, i:1, no:0, runs:0, high:"0", avg:0.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
+  {name:"Josh Robins", m:1, i:1, no:1, runs:1, high:"1*", avg:0.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
+];
+
+const bowling = [
+  {name:"James Millinship", m:1, overs:1.0, mdns:0, runs:4, wkts:1, best:"1-4", fivew:0, avg:4.00, econ:4.00},
+  {name:"Nick Hines", m:2, overs:2.2, mdns:0, runs:23, wkts:2, best:"2-19", fivew:0, avg:11.50, econ:9.86},
+  {name:"Kyle Chamberlain", m:10, overs:55.2, mdns:3, runs:281, wkts:15, best:"6-40", fivew:1, avg:18.73, econ:5.08},
+  {name:"Phil Crouch", m:18, overs:155.0, mdns:27, runs:547, wkts:25, best:"4-18", fivew:0, avg:21.88, econ:3.53},
+  {name:"Oliver Richings", m:19, overs:109.0, mdns:7, runs:602, wkts:23, best:"4-37", fivew:0, avg:26.17, econ:5.52},
+  {name:"Max Hines", m:4, overs:14.0, mdns:0, runs:110, wkts:4, best:"2-21", fivew:0, avg:27.50, econ:7.86},
+  {name:"George Rolfe", m:22, overs:147.0, mdns:20, runs:774, wkts:27, best:"4-39", fivew:0, avg:28.67, econ:5.27},
+  {name:"Liam O'Rourke", m:19, overs:135.3, mdns:10, runs:840, wkts:24, best:"4-43", fivew:0, avg:35.00, econ:6.20},
+  {name:"Ahad Saiyed", m:3, overs:10.3, mdns:2, runs:73, wkts:2, best:"2-26", fivew:0, avg:36.50, econ:6.95},
+  {name:"Ady Baker", m:20, overs:126.5, mdns:3, runs:689, wkts:18, best:"4-40", fivew:0, avg:38.28, econ:5.43},
+  {name:"Ben Betteridge", m:1, overs:5.0, mdns:0, runs:46, wkts:1, best:"1-46", fivew:0, avg:46.00, econ:9.20},
+  {name:"Lee Skene", m:13, overs:80.4, mdns:6, runs:433, wkts:9, best:"2-27", fivew:0, avg:48.11, econ:5.37},
+  {name:"Josh Robins", m:1, overs:2.0, mdns:0, runs:16, wkts:0, best:"0-16", fivew:0, avg:0.00, econ:8.00},
+  {name:"Jack Smith", m:1, overs:2.0, mdns:0, runs:21, wkts:0, best:"0-21", fivew:0, avg:0.00, econ:10.50},
+];
+
+const battingCols = [
+  {key:"name", label:"Player"}, {key:"m", label:"M"}, {key:"i", label:"I"}, {key:"no", label:"NO"},
+  {key:"runs", label:"Runs"}, {key:"high", label:"High", parse:v=>parseFloat(v)}, {key:"avg", label:"Avg"},
+  {key:"fours", label:"4s"}, {key:"sixes", label:"6s"}, {key:"hundreds", label:"100s"},
+  {key:"fifties", label:"50s"}, {key:"ct", label:"Ct"}, {key:"st", label:"St"},
+];
+const bowlingCols = [
+  {key:"name", label:"Player"}, {key:"m", label:"M"}, {key:"overs", label:"O"}, {key:"mdns", label:"Mdns"},
+  {key:"runs", label:"R"}, {key:"wkts", label:"W"}, {key:"best", label:"Best", parse:v=>parseInt(v.split("-")[1])},
+  {key:"fivew", label:"5W"}, {key:"avg", label:"Avg"}, {key:"econ", label:"Econ"},
+];
+
+function renderTable(data, cols, headEl, bodyEl, opts){
+  headEl.innerHTML = cols.map((c,i) => `<th data-i="${i}">${c.label}<span class="arrow">▲</span></th>`).join("");
+
+  function draw(rows){
+    bodyEl.innerHTML = rows.map(r => {
+      const isTop = opts.topCheck(r);
+      const cells = cols.map(c => {
+        let val = r[c.key];
+        if (c.key === "name") return `<td class="name">${val}</td>`;
+        if (c.key === "high" && typeof val === "string" && val.includes("*")) {
+          return `<td>${val.replace("*", "")}<span class="not-out">*</span></td>`;
+        }
+        if (c.key === "avg" || c.key === "econ") return `<td>${Number(val).toFixed(1)}</td>`;
+        return `<td>${val}</td>`;
+      }).join("");
+      return `<tr class="${isTop ? 'top-row' : ''}">${cells}</tr>`;
+    }).join("");
+  }
+  draw(data);
+
+  let sortState = { i: null, dir: 1 };
+  [...headEl.children].forEach((th, i) => {
+    th.addEventListener("click", () => {
+      const col = cols[i];
+      sortState.dir = (sortState.i === i) ? -sortState.dir : (col.key === "name" ? 1 : -1);
+      sortState.i = i;
+      [...headEl.children].forEach(h => h.classList.remove("sorted"));
+      th.classList.add("sorted");
+      th.querySelector(".arrow").textContent = sortState.dir === 1 ? "▲" : "▼";
+      const sorted = [...data].sort((a, b) => {
+        let av = a[col.key], bv = b[col.key];
+        if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
+        if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sortState.dir;
+        return (av - bv) * sortState.dir;
+      });
+      draw(sorted);
+    });
+  });
+}
+
+renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"), {
+  topCheck: r => r.name === batting.reduce((a,b) => b.runs > a.runs ? b : a).name
+});
+renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"), {
+  topCheck: r => r.name === bowling.reduce((a,b) => b.wkts > a.wkts ? b : a).name
+});
+
+// ---- Reusable single/multi-select dropdown ----
+function initMultiSelect(root, {options, selected, labelForNone, onChange}){
+  const btn = root.querySelector('.msel-btn');
+  const labelEl = root.querySelector('.msel-label');
+  const panel = root.querySelector('.msel-panel');
+  let state = new Set(selected);
+
+  function renderLabel(){
+    if(state.size === 0) labelEl.textContent = labelForNone || 'All';
+    else if(state.size === options.length) labelEl.textContent = 'All';
+    else if(state.size === 1) labelEl.textContent = [...state][0];
+    else labelEl.textContent = state.size + ' selected';
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = '<button type="button" class="msel-action" data-a="all">Select all</button><button type="button" class="msel-action" data-a="clear">Clear</button>';
+  panel.appendChild(actions);
+  actions.querySelector('[data-a="all"]').addEventListener('click', (e) => { e.stopPropagation(); options.forEach(o=>state.add(o)); sync(); });
+  actions.querySelector('[data-a="clear"]').addEventListener('click', (e) => { e.stopPropagation(); state.clear(); sync(); });
+
+  options.forEach(opt => {
+    const label = document.createElement('label');
+    label.className = 'msel-item';
+    label.innerHTML = `<input type="checkbox" value="${opt}"> <span>${opt}</span>`;
+    panel.appendChild(label);
+    const cb = label.querySelector('input');
+    cb.checked = state.has(opt);
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.add(opt); else state.delete(opt);
+      renderLabel();
+      onChange && onChange([...state]);
+    });
+  });
+
+  function sync(){
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = state.has(cb.value); });
+    renderLabel();
+    onChange && onChange([...state]);
+  }
+
+  renderLabel();
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m => { if (m !== root) m.classList.remove('open'); });
+    root.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => { if (!root.contains(e.target)) root.classList.remove('open'); });
+
+  return { get selected(){ return [...state]; } };
+}
+
+const teamOptions = ["1st XI","2nd XI","3rd XI","Midweek XI","Midweek 2nd XI","Sunday XI","Past Overseas Players"];
+const seasonOptions = ["2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009"];
+
+const teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
+  options: teamOptions, selected: ["1st XI"]
+});
+const seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
+  options: seasonOptions, selected: ["2025"]
+});
+
+const compOptions = ["League", "Cup", "Friendly"];
+const compMsel = initMultiSelect(document.getElementById('compSelect'), {
+  options: compOptions, selected: compOptions
+});
+
+// ---- Horizontal-scroll hint for tables (shows a fade only when there's more to scroll) ----
+function initScrollHint(container){
+  function update(){
+    const table = container.querySelector('table');
+    container.classList.toggle('has-scroll', table.scrollWidth - container.clientWidth > 4 && container.scrollLeft < table.scrollWidth - container.clientWidth - 4);
+  }
+  container.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  update();
+}
+initScrollHint(document.getElementById('battingScroll'));
+initScrollHint(document.getElementById('bowlingScroll'));
+
+// ---- Theme toggle (light/dark), persisted across pages via localStorage ----
+function getEffectiveTheme(){
+  const attr = document.documentElement.getAttribute('data-theme');
+  if (attr) return attr;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('barwellcc-theme', next);
+});
+</script>
+</body>
+</html>

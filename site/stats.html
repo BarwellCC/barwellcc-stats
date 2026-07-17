@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barwell CC — Stats search (visual refresh mockup)</title>
+<script>
+// Applied before paint so a stored preference doesn't flash the other theme.
+(function(){
+  var stored = localStorage.getItem('barwellcc-theme');
+  if(stored === 'dark' || stored === 'light') document.documentElement.setAttribute('data-theme', stored);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    --pitch-green: #1E3A2B;
+    --pitch-green-dark: #142A1E;
+    --cream: #F6F1E4;
+    --bg-page: #F6F1E4;
+    --card: #FFFDF8;
+    --row-even: #F5EFE1;
+    --head-bg: #EDE7D6;
+    --ink: #201E18;
+    --ink-soft: #5B5548;
+    --maroon: #7A2E2E;
+    --accent: #7A2E2E;
+    --accent-underline: rgba(122,46,46,0.35);
+    --brass: #B8923A;
+    --brass-bright: #D4AF5A;
+    --line: #E1D8C0;
+    --line-strong: #CBBE9C;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+      --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+    --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"]{ color-scheme: light; }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* ============ MOBILE-FIRST BASE STYLES ============ */
+  body{
+    margin:0;
+    background: var(--bg-page);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background .15s ease, color .15s ease;
+  }
+  .page{ max-width: 980px; margin: 0 auto; padding: 0 12px 48px; }
+
+  /* ---- Shared site nav (Fixtures / Stats / Averages) + theme toggle ---- */
+  .site-nav{ display:flex; align-items:stretch; background: var(--pitch-green-dark); margin: 0 -12px; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .site-nav-links{ display:flex; flex:1; }
+  .site-nav-links a{
+    flex: 1 1 0; text-align:center; padding: 11px 8px;
+    font-family:'Inter'; font-weight:600; font-size: 12px; letter-spacing:0.05em; text-transform:uppercase;
+    color: rgba(246,241,228,0.62); text-decoration:none; border-bottom: 2px solid transparent;
+  }
+  .site-nav-links a:hover{ color: var(--cream); }
+  .site-nav-links a.active{ color: var(--brass-bright); border-bottom-color: var(--brass); }
+  .theme-toggle{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width: 42px; border:none; border-left: 1px solid rgba(255,255,255,0.1);
+    background: transparent; color: rgba(246,241,228,0.62); cursor:pointer; padding:0;
+  }
+  .theme-toggle:hover{ color: var(--brass-bright); }
+  .theme-toggle svg{ width:16px; height:16px; }
+  .theme-toggle .icon-sun{ display:none; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun{ display:block; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon{ display:none; }
+  }
+  :root[data-theme="dark"] .theme-toggle .icon-sun{ display:block; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon{ display:none; }
+
+  .tabs{ display:flex; gap:6px; margin-top: 18px; margin-bottom: 16px; }
+  .tab{
+    flex:1 1 0; text-align:center;
+    font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
+    cursor: pointer; transition: all .15s ease;
+  }
+  .tab:hover{ border-color: var(--pitch-green); color: var(--pitch-green); }
+  .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
+
+  .search-card{
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+  }
+  .search-lead{ font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; line-height:1.5; }
+  .field-grid{ display:grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 14px; }
+  .field label{
+    display:block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px;
+  }
+  .field select, .field input{
+    width: 100%; font-family: 'Inter'; font-size: 16px; padding: 9px 10px;
+    border-radius: 6px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink);
+  }
+  .field select{
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%235B5548"/></svg>');
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 28px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .field select{
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
+    }
+  }
+  :root[data-theme="dark"] .field select{
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
+  }
+  .range-row{ display:flex; align-items:flex-end; gap: 10px; }
+  .range-row .field{ flex: 1; }
+  .range-and{ padding-bottom: 9px; font-size: 13px; color: var(--ink-soft); }
+  .search-footer{ display:flex; justify-content: stretch; }
+  .btn{
+    width: 100%;
+    font-family: 'Inter'; font-weight: 700; font-size: 14px; letter-spacing: 0.01em;
+    padding: 12px 22px; border-radius: 6px; border: none; cursor: pointer;
+    background: var(--maroon); color: var(--cream); transition: background .15s ease;
+  }
+  .btn:hover{ background: #632424; }
+
+  /* ---- Multi/single-select dropdown ---- */
+  .msel{ position:relative; }
+  .msel-btn{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width: 100%; font-family:'Inter'; font-size: 16px; font-weight: 500;
+    padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  .msel-btn:hover{ border-color: var(--pitch-green); }
+  .msel.open .msel-btn{ border-color: var(--pitch-green); }
+  .msel-arrow{ font-size: 9px; color: var(--ink-soft); transition: transform .15s ease; flex-shrink:0; }
+  .msel.open .msel-arrow{ transform: rotate(180deg); }
+  .msel-panel{
+    display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20;
+    background: var(--card); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(20,42,30,0.16); padding: 8px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .msel.open .msel-panel{ display:block; }
+  .msel-actions{ display:flex; gap:12px; padding: 4px 6px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .msel-action{ background:none; border:none; padding:0; font-size: 11.5px; font-weight: 700; color: var(--accent); cursor: pointer; }
+  .msel-action:hover{ text-decoration: underline; }
+  .msel-item{ display:flex; align-items:center; gap:8px; padding: 8px 6px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+  .msel-item:hover{ background: rgba(30,58,43,0.06); }
+  .msel-item input{ accent-color: var(--pitch-green); width: 16px; height: 16px; flex-shrink:0; }
+
+  .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
+  .section-label{
+    font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin:0;
+  }
+  .results-count{ font-size: 12px; color: var(--ink-soft); }
+
+  .card{
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+  }
+  .table-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius: var(--radius); }
+  .table-scroll::after{
+    content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
+    background: linear-gradient(to right, transparent, rgba(20,42,30,0.10));
+    opacity:0; transition: opacity .15s ease; pointer-events:none;
+  }
+  .table-scroll.has-scroll::after{ opacity:1; }
+  table{ width: 100%; min-width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th{
+    text-align: left; font-weight: 600; font-size: 10.5px; letter-spacing: 0.02em;
+    text-transform: uppercase; color: var(--ink-soft); padding: 10px 8px;
+    border-bottom: 1px solid var(--line-strong); background: var(--head-bg);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover{ color: var(--pitch-green); }
+  thead th .arrow{ display:inline-block; width: 9px; opacity: 0.35; font-size: 9px; }
+  thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
+  thead th.num{ text-align: right; }
+  tbody td{ padding: 9px 8px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+  tbody tr:last-child td{ border-bottom: none; }
+  tbody tr:nth-child(even){ background: var(--row-even); }
+  td.score{ font-variant-numeric: tabular-nums; text-align:right; font-weight: 700; color: var(--accent); }
+  .not-out{ color: var(--pitch-green); font-weight: 700; }
+  .venue-away{ color: var(--ink-soft); }
+  a.scorecard-link{
+    color: var(--accent); font-weight: 600; font-size: 12.5px; text-decoration: none;
+    border-bottom: 1px solid var(--accent-underline);
+  }
+  a.scorecard-link:hover{ border-color: var(--accent); }
+
+  /* Sticky first column - matters most on mobile where the table scrolls horizontally */
+  thead th:first-child{ position: sticky; left:0; z-index:3; background: var(--head-bg); }
+  tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
+  tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
+
+  .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -6px; margin-bottom: 20px; line-height:1.5; }
+
+  /* ============ LARGER SCREENS ============ */
+  @media (min-width: 640px){
+    .page{ padding: 0 20px 64px; }
+    .site-nav{ margin: 0 -20px; }
+    .site-nav-links a{ flex: none; padding: 12px 26px; font-size: 12.5px; }
+
+    .tabs{ gap:6px; }
+    .tab{ flex: none; padding: 8px 18px; }
+
+    .search-card{ padding: 22px 24px; }
+    .search-lead{ font-size: 12.5px; }
+    .field-grid{ grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+    .field select, .field input, .msel-btn{ font-size: 14px; }
+    .search-footer{ justify-content: flex-end; }
+    .btn{ width: auto; padding: 10px 22px; font-size: 13.5px; }
+
+    table{ font-size: 13.5px; }
+    thead th{ font-size: 11.5px; padding: 12px 12px; }
+    tbody td{ padding: 10px 12px; }
+    .note{ font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="site-nav">
+    <div class="site-nav-links">
+      <a href="fixtures.html">Fixtures</a>
+      <a href="averages.html">Averages</a>
+      <a href="stats.html" class="active">Stats</a>
+    </div>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </nav>
+
+  <div class="tabs">
+    <div class="tab active">Batting</div>
+    <div class="tab">Bowling</div>
+  </div>
+
+  <div class="search-card">
+    <p class="search-lead">Select your search criteria to display the stats you wish to search for. Team and Season now accept one or several values.</p>
+    <div class="field-grid">
+      <div class="field">
+        <label>Player</label>
+        <select><option>James Dillon</option></select>
+      </div>
+      <div class="field">
+        <label>Team</label>
+        <div class="msel" id="teamSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">2nd XI</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fixture Type</label>
+        <select><option>League</option></select>
+      </div>
+      <div class="field">
+        <label>Season</label>
+        <div class="msel" id="seasonSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">2026</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
+      </div>
+    </div>
+    <div class="range-row" style="max-width: 340px; margin-bottom:16px;">
+      <div class="field">
+        <label>Scores between</label>
+        <input type="text" placeholder="no lower limit">
+      </div>
+      <div class="range-and">and</div>
+      <div class="field">
+        <input type="text" placeholder="no upper limit" style="margin-top: 21px;">
+      </div>
+    </div>
+    <div class="search-footer">
+      <button class="btn">Retrieve details</button>
+    </div>
+  </div>
+
+  <div class="results-label">
+    <p class="section-label">Results</p>
+    <span class="results-count" id="resultsCount">11 innings</span>
+  </div>
+
+  <div class="card">
+    <div class="table-scroll" id="resultsScroll">
+      <table>
+        <thead><tr id="resultsHead"></tr></thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">Mockup only — the search fields aren't wired up yet; the table shows James Dillon's real 2026 2nd XI league innings. Tap a column heading to sort, and swipe sideways on a phone to see every column.</div>
+
+</div>
+
+<script>
+const innings = [
+  {score:33, notout:false, date:"06 Jun 2026", team:"2nd XI", fixture:"League", opp:"Bitteswell CC 1st XI", venue:"Away"},
+  {score:16, notout:false, date:"30 May 2026", team:"2nd XI", fixture:"League", opp:"Kibworth CC 3rd XI", venue:"Home"},
+  {score:11, notout:false, date:"02 May 2026", team:"2nd XI", fixture:"League", opp:"Countesthorpe CC 1st XI", venue:"Home"},
+  {score:11, notout:false, date:"23 May 2026", team:"2nd XI", fixture:"League", opp:"Cosby CC 1st XI", venue:"Away"},
+  {score:10, notout:false, date:"11 Jul 2026", team:"2nd XI", fixture:"League", opp:"Electricity Sports CC 2nd XI", venue:"Home"},
+  {score:6, notout:false, date:"09 May 2026", team:"2nd XI", fixture:"League", opp:"Electricity Sports CC 2nd XI", venue:"Away"},
+  {score:4, notout:false, date:"27 Jun 2026", team:"2nd XI", fixture:"League", opp:"Market Harborough CC 1st XI", venue:"Away"},
+  {score:4, notout:false, date:"18 Apr 2026", team:"2nd XI", fixture:"League", opp:"Newbold Verdon CC 1st XI", venue:"Away"},
+  {score:3, notout:false, date:"13 Jun 2026", team:"2nd XI", fixture:"League", opp:"Narborough & Littlethorpe CC 1st XI", venue:"Home"},
+  {score:3, notout:false, date:"25 Apr 2026", team:"2nd XI", fixture:"League", opp:"Hinckley Amateur CC 1st XI", venue:"Home"},
+  {score:1, notout:true, date:"04 Jul 2026", team:"2nd XI", fixture:"League", opp:"Countesthorpe CC 1st XI", venue:"Away"},
+];
+
+const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+function parseUkDate(str){
+  const [dd, mon, yyyy] = str.split(" ");
+  return new Date(Number(yyyy), MONTHS[mon], Number(dd)).getTime();
+}
+
+const resultCols = [
+  {key:"player", label:"Player"},
+  {key:"score", label:"Score", numClass:"num", parse:v => parseInt(v)},
+  {key:"date", label:"Date", parse: v => parseUkDate(v)},
+  {key:"team", label:"Team"},
+  {key:"fixture", label:"Fixture"},
+  {key:"opp", label:"Opposition"},
+  {key:"venue", label:"Venue"},
+  {key:"scorecard", label:""},
+];
+
+function draw(rows){
+  document.getElementById("resultsBody").innerHTML = rows.map(r => `
+    <tr>
+      <td>James Dillon</td>
+      <td class="score">${r.score}${r.notout ? '<span class="not-out">*</span>' : ''}</td>
+      <td>${r.date}</td>
+      <td>${r.team}</td>
+      <td>${r.fixture}</td>
+      <td>${r.opp}</td>
+      <td class="${r.venue === 'Away' ? 'venue-away' : ''}">${r.venue}</td>
+      <td><a class="scorecard-link" href="scorecard.html">Scorecard</a></td>
+    </tr>
+  `).join("");
+}
+
+const headEl = document.getElementById("resultsHead");
+headEl.innerHTML = resultCols.map((c,i) =>
+  `<th class="${c.numClass||''}" data-i="${i}">${c.label}${c.label ? '<span class="arrow">▲</span>' : ''}</th>`
+).join("");
+draw(innings);
+
+let sortState = { i: null, dir: 1 };
+[...headEl.children].forEach((th, i) => {
+  const col = resultCols[i];
+  if (!col.label) return; // scorecard column isn't sortable
+  th.addEventListener("click", () => {
+    sortState.dir = (sortState.i === i) ? -sortState.dir : 1;
+    sortState.i = i;
+    [...headEl.children].forEach(h => h.classList.remove("sorted"));
+    th.classList.add("sorted");
+    const arrow = th.querySelector(".arrow");
+    if (arrow) arrow.textContent = sortState.dir === 1 ? "▲" : "▼";
+
+    const dataKey = col.key === "player" ? null : col.key;
+    const sorted = [...innings].sort((a, b) => {
+      if (col.key === "player") return 0; // single player in this mockup
+      let av = a[col.key], bv = b[col.key];
+      if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
+      if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sortState.dir;
+      return (av - bv) * sortState.dir;
+    });
+    draw(sorted);
+  });
+});
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+}));
+
+// ---- Reusable single/multi-select dropdown (same component as the averages page) ----
+function initMultiSelect(root, {options, selected, labelForNone, onChange}){
+  const btn = root.querySelector('.msel-btn');
+  const labelEl = root.querySelector('.msel-label');
+  const panel = root.querySelector('.msel-panel');
+  let state = new Set(selected);
+
+  function renderLabel(){
+    if(state.size === 0) labelEl.textContent = labelForNone || 'All';
+    else if(state.size === options.length) labelEl.textContent = 'All';
+    else if(state.size === 1) labelEl.textContent = [...state][0];
+    else labelEl.textContent = state.size + ' selected';
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = '<button type="button" class="msel-action" data-a="all">Select all</button><button type="button" class="msel-action" data-a="clear">Clear</button>';
+  panel.appendChild(actions);
+  actions.querySelector('[data-a="all"]').addEventListener('click', (e) => { e.stopPropagation(); options.forEach(o=>state.add(o)); sync(); });
+  actions.querySelector('[data-a="clear"]').addEventListener('click', (e) => { e.stopPropagation(); state.clear(); sync(); });
+
+  options.forEach(opt => {
+    const label = document.createElement('label');
+    label.className = 'msel-item';
+    label.innerHTML = `<input type="checkbox" value="${opt}"> <span>${opt}</span>`;
+    panel.appendChild(label);
+    const cb = label.querySelector('input');
+    cb.checked = state.has(opt);
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.add(opt); else state.delete(opt);
+      renderLabel();
+      onChange && onChange([...state]);
+    });
+  });
+
+  function sync(){
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = state.has(cb.value); });
+    renderLabel();
+    onChange && onChange([...state]);
+  }
+
+  renderLabel();
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m => { if (m !== root) m.classList.remove('open'); });
+    root.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => { if (!root.contains(e.target)) root.classList.remove('open'); });
+
+  return { get selected(){ return [...state]; } };
+}
+
+const teamOptions = ["1st XI","2nd XI","3rd XI","Midweek XI","Midweek 2nd XI","Sunday XI","Past Overseas Players"];
+const seasonOptions = ["2026","2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009"];
+
+initMultiSelect(document.getElementById('teamSelect'), { options: teamOptions, selected: ["2nd XI"] });
+initMultiSelect(document.getElementById('seasonSelect'), { options: seasonOptions, selected: ["2026"] });
+
+// ---- Horizontal-scroll hint for the results table ----
+function initScrollHint(container){
+  function update(){
+    const table = container.querySelector('table');
+    container.classList.toggle('has-scroll', table.scrollWidth - container.clientWidth > 4 && container.scrollLeft < table.scrollWidth - container.clientWidth - 4);
+  }
+  container.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  update();
+}
+initScrollHint(document.getElementById('resultsScroll'));
+
+// ---- Theme toggle (light/dark), persisted across pages via localStorage ----
+function getEffectiveTheme(){
+  const attr = document.documentElement.getAttribute('data-theme');
+  if (attr) return attr;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('barwellcc-theme', next);
+});
+</script>
+</body>
+</html>

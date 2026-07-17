@@ -1,0 +1,8 @@
+node_modules/
+.env
+data/*.db
+data/*.db-wal
+data/*.db-shm
+*.xlsx
+*.xls
+.claude/settings.local.json
