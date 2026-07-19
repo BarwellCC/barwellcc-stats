@@ -19,7 +19,13 @@ function migrate(db) {
 }
 
 function openDb() {
-  const db = new Database(getDbPath());
+  const dbPath = getDbPath();
+  // data/ is gitignored (only the .db file inside it shouldn't be tracked,
+  // not the directory) - a fresh checkout (e.g. the GitHub Actions runner)
+  // has no data/ directory at all, and better-sqlite3 doesn't create
+  // missing parent directories itself.
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
   db.exec(schema);
