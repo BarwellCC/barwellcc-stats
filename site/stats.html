@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Barwell CC — Stats search (visual refresh mockup)</title>
+<title>Barwell CC — Stats</title>
 <script>
 // Applied before paint so a stored preference doesn't flash the other theme.
 (function(){
@@ -37,13 +37,13 @@
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C; --pitch-green: #4F8C5C;
       --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
     }
   }
   :root[data-theme="dark"]{
     --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C; --pitch-green: #4F8C5C;
     --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
     color-scheme: dark;
   }
@@ -248,54 +248,57 @@
   </nav>
 
   <div class="tabs">
-    <div class="tab active">Batting</div>
-    <div class="tab">Bowling</div>
+    <div class="tab active" data-tab="batting">Batting</div>
+    <div class="tab" data-tab="bowling">Bowling</div>
   </div>
 
   <div class="search-card">
-    <p class="search-lead">Select your search criteria to display the stats you wish to search for. Team and Season now accept one or several values.</p>
+    <p class="search-lead">Select your search criteria to display the stats you wish to search for. Team, Fixture Type and Season all accept one or several values.</p>
     <div class="field-grid">
       <div class="field">
         <label>Player</label>
-        <select><option>James Dillon</option></select>
+        <select id="playerPick"><option value="">Any player</option></select>
       </div>
       <div class="field">
         <label>Team</label>
         <div class="msel" id="teamSelect">
-          <button type="button" class="msel-btn"><span class="msel-label">2nd XI</span><span class="msel-arrow">▾</span></button>
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
           <div class="msel-panel"></div>
         </div>
       </div>
       <div class="field">
         <label>Fixture Type</label>
-        <select><option>League</option></select>
+        <div class="msel" id="compSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
       </div>
       <div class="field">
         <label>Season</label>
         <div class="msel" id="seasonSelect">
-          <button type="button" class="msel-btn"><span class="msel-label">2026</span><span class="msel-arrow">▾</span></button>
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
           <div class="msel-panel"></div>
         </div>
       </div>
     </div>
     <div class="range-row" style="max-width: 340px; margin-bottom:16px;">
       <div class="field">
-        <label>Scores between</label>
-        <input type="text" placeholder="no lower limit">
+        <label id="scoreMinLabel">Scores between</label>
+        <input type="text" inputmode="numeric" placeholder="no lower limit" id="scoreMin">
       </div>
       <div class="range-and">and</div>
       <div class="field">
-        <input type="text" placeholder="no upper limit" style="margin-top: 21px;">
+        <input type="text" inputmode="numeric" placeholder="no upper limit" id="scoreMax" style="margin-top: 21px;">
       </div>
     </div>
     <div class="search-footer">
-      <button class="btn">Retrieve details</button>
+      <button class="btn" id="searchBtn" type="button">Retrieve details</button>
     </div>
   </div>
 
   <div class="results-label">
     <p class="section-label">Results</p>
-    <span class="results-count" id="resultsCount">11 innings</span>
+    <span class="results-count" id="resultsCount"></span>
   </div>
 
   <div class="card">
@@ -307,91 +310,143 @@
     </div>
   </div>
 
-  <div class="note">Mockup only — the search fields aren't wired up yet; the table shows James Dillon's real 2026 2nd XI league innings. Tap a column heading to sort, and swipe sideways on a phone to see every column.</div>
+  <div class="note">Real data from the synced Play-Cricket database. Leave Player as "Any player" to browse every innings matching the other filters. Tap a column heading to sort, and swipe sideways on a phone to see every column.</div>
 
 </div>
 
 <script>
-const innings = [
-  {score:33, notout:false, date:"06 Jun 2026", team:"2nd XI", fixture:"League", opp:"Bitteswell CC 1st XI", venue:"Away"},
-  {score:16, notout:false, date:"30 May 2026", team:"2nd XI", fixture:"League", opp:"Kibworth CC 3rd XI", venue:"Home"},
-  {score:11, notout:false, date:"02 May 2026", team:"2nd XI", fixture:"League", opp:"Countesthorpe CC 1st XI", venue:"Home"},
-  {score:11, notout:false, date:"23 May 2026", team:"2nd XI", fixture:"League", opp:"Cosby CC 1st XI", venue:"Away"},
-  {score:10, notout:false, date:"11 Jul 2026", team:"2nd XI", fixture:"League", opp:"Electricity Sports CC 2nd XI", venue:"Home"},
-  {score:6, notout:false, date:"09 May 2026", team:"2nd XI", fixture:"League", opp:"Electricity Sports CC 2nd XI", venue:"Away"},
-  {score:4, notout:false, date:"27 Jun 2026", team:"2nd XI", fixture:"League", opp:"Market Harborough CC 1st XI", venue:"Away"},
-  {score:4, notout:false, date:"18 Apr 2026", team:"2nd XI", fixture:"League", opp:"Newbold Verdon CC 1st XI", venue:"Away"},
-  {score:3, notout:false, date:"13 Jun 2026", team:"2nd XI", fixture:"League", opp:"Narborough & Littlethorpe CC 1st XI", venue:"Home"},
-  {score:3, notout:false, date:"25 Apr 2026", team:"2nd XI", fixture:"League", opp:"Hinckley Amateur CC 1st XI", venue:"Home"},
-  {score:1, notout:true, date:"04 Jul 2026", team:"2nd XI", fixture:"League", opp:"Countesthorpe CC 1st XI", venue:"Away"},
-];
+let activeTab = 'batting';
+let results = [];
 
-const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
-function parseUkDate(str){
-  const [dd, mon, yyyy] = str.split(" ");
-  return new Date(Number(yyyy), MONTHS[mon], Number(dd)).getTime();
+const dayMonths = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function formatDate(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return `${String(d).padStart(2,'0')} ${dayMonths[m-1]} ${y}`;
 }
 
-const resultCols = [
+const battingCols = [
   {key:"player", label:"Player"},
-  {key:"score", label:"Score", numClass:"num", parse:v => parseInt(v)},
-  {key:"date", label:"Date", parse: v => parseUkDate(v)},
+  {key:"score", label:"Score", numClass:"num"},
+  {key:"date", label:"Date", parse: v => new Date(v).getTime()},
   {key:"team", label:"Team"},
   {key:"fixture", label:"Fixture"},
   {key:"opp", label:"Opposition"},
   {key:"venue", label:"Venue"},
   {key:"scorecard", label:""},
 ];
+const bowlingCols = [
+  {key:"player", label:"Player"},
+  {key:"score", label:"Wkts", numClass:"num"},
+  {key:"figures", label:"Figures"},
+  {key:"overs", label:"Overs", numClass:"num"},
+  {key:"date", label:"Date", parse: v => new Date(v).getTime()},
+  {key:"team", label:"Team"},
+  {key:"fixture", label:"Fixture"},
+  {key:"opp", label:"Opposition"},
+  {key:"venue", label:"Venue"},
+  {key:"scorecard", label:""},
+];
+function currentCols(){ return activeTab === 'batting' ? battingCols : bowlingCols; }
 
-function draw(rows){
-  document.getElementById("resultsBody").innerHTML = rows.map(r => `
-    <tr>
-      <td>James Dillon</td>
-      <td class="score">${r.score}${r.notout ? '<span class="not-out">*</span>' : ''}</td>
-      <td>${r.date}</td>
-      <td>${r.team}</td>
-      <td>${r.fixture}</td>
-      <td>${r.opp}</td>
-      <td class="${r.venue === 'Away' ? 'venue-away' : ''}">${r.venue}</td>
-      <td><a class="scorecard-link" href="scorecard.html">Scorecard</a></td>
-    </tr>
-  `).join("");
+function cellHtml(r, c){
+  const val = r[c.key];
+  if (c.key === "score" && activeTab === 'batting') {
+    return `<td class="score">${val}${r.notOut ? '<span class="not-out">*</span>' : ''}</td>`;
+  }
+  if (c.key === "score") return `<td class="score">${val}</td>`;
+  if (c.key === "date") return `<td>${formatDate(val)}</td>`;
+  if (c.key === "venue") return `<td class="${val === 'A' ? 'venue-away' : ''}">${val === 'H' ? 'Home' : 'Away'}</td>`;
+  if (c.key === "scorecard") return `<td><a class="scorecard-link" href="scorecard.html?id=${r.matchId}">Scorecard</a></td>`;
+  return `<td>${val}</td>`;
 }
 
-const headEl = document.getElementById("resultsHead");
-headEl.innerHTML = resultCols.map((c,i) =>
-  `<th class="${c.numClass||''}" data-i="${i}">${c.label}${c.label ? '<span class="arrow">▲</span>' : ''}</th>`
-).join("");
-draw(innings);
+function draw(rows){
+  const cols = currentCols();
+  document.getElementById("resultsBody").innerHTML = rows.map(r =>
+    `<tr>${cols.map(c => cellHtml(r, c)).join("")}</tr>`
+  ).join("");
+}
 
-let sortState = { i: null, dir: 1 };
-[...headEl.children].forEach((th, i) => {
-  const col = resultCols[i];
-  if (!col.label) return; // scorecard column isn't sortable
-  th.addEventListener("click", () => {
-    sortState.dir = (sortState.i === i) ? -sortState.dir : 1;
-    sortState.i = i;
-    [...headEl.children].forEach(h => h.classList.remove("sorted"));
-    th.classList.add("sorted");
-    const arrow = th.querySelector(".arrow");
-    if (arrow) arrow.textContent = sortState.dir === 1 ? "▲" : "▼";
+function renderHead(){
+  const cols = currentCols();
+  const headEl = document.getElementById("resultsHead");
+  headEl.innerHTML = cols.map((c,i) =>
+    `<th class="${c.numClass||''}" data-i="${i}">${c.label}${c.label ? '<span class="arrow">▲</span>' : ''}</th>`
+  ).join("");
 
-    const dataKey = col.key === "player" ? null : col.key;
-    const sorted = [...innings].sort((a, b) => {
-      if (col.key === "player") return 0; // single player in this mockup
-      let av = a[col.key], bv = b[col.key];
-      if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
-      if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sortState.dir;
-      return (av - bv) * sortState.dir;
+  let sortState = { i: null, dir: 1 };
+  [...headEl.children].forEach((th, i) => {
+    const col = cols[i];
+    if (!col.label) return; // scorecard column isn't sortable
+    th.addEventListener("click", () => {
+      sortState.dir = (sortState.i === i) ? -sortState.dir : 1;
+      sortState.i = i;
+      [...headEl.children].forEach(h => h.classList.remove("sorted"));
+      th.classList.add("sorted");
+      const arrow = th.querySelector(".arrow");
+      if (arrow) arrow.textContent = sortState.dir === 1 ? "▲" : "▼";
+
+      const sorted = [...results].sort((a, b) => {
+        let av = a[col.key], bv = b[col.key];
+        if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
+        if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sortState.dir;
+        return (av - bv) * sortState.dir;
+      });
+      draw(sorted);
     });
-    draw(sorted);
   });
-});
+}
+
+function renderEmpty(message){
+  results = [];
+  renderHead();
+  draw(results);
+  document.getElementById('resultsCount').textContent = message;
+}
+
+async function loadStats(){
+  const teams = teamMsel.selected;
+  const seasons = seasonMsel.selected;
+  const comps = compMsel.selected;
+
+  if (teams.length === 0 || seasons.length === 0 || comps.length === 0) {
+    renderEmpty('0 innings');
+    return;
+  }
+
+  const player = document.getElementById('playerPick').value;
+  const min = document.getElementById('scoreMin').value.trim();
+  const max = document.getElementById('scoreMax').value.trim();
+
+  const params = new URLSearchParams();
+  if (player) params.set('player', player);
+  if (teams.length < teamOptions.length) params.set('team', teams.join(','));
+  if (seasons.length < seasonOptions.length) params.set('season', seasons.join(','));
+  if (comps.length < compOptions.length) params.set('comp', comps.join(','));
+  if (min) params.set('min', min);
+  if (max) params.set('max', max);
+
+  const res = await fetch(`/api/stats/${activeTab}?${params}`);
+  results = await res.json();
+  renderHead();
+  draw(results);
+  document.getElementById('resultsCount').textContent = `${results.length} innings`;
+}
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
+  activeTab = t.dataset.tab;
+  document.getElementById('scoreMinLabel').textContent = activeTab === 'batting' ? 'Scores between' : 'Wickets between';
+  loadStats();
 }));
+
+document.getElementById('searchBtn').addEventListener('click', loadStats);
+['scoreMin', 'scoreMax'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') loadStats(); });
+  document.getElementById(id).addEventListener('blur', loadStats);
+});
+document.getElementById('playerPick').addEventListener('change', loadStats);
 
 // ---- Reusable single/multi-select dropdown (same component as the averages page) ----
 function initMultiSelect(root, {options, selected, labelForNone, onChange}){
@@ -445,11 +500,36 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   return { get selected(){ return [...state]; } };
 }
 
-const teamOptions = ["1st XI","2nd XI","3rd XI","Midweek XI","Midweek 2nd XI","Sunday XI","Past Overseas Players"];
-const seasonOptions = ["2026","2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009"];
+let teamOptions = [];
+let seasonOptions = [];
+const compOptions = ["League", "Cup", "Friendly"];
+let teamMsel, seasonMsel, compMsel;
 
-initMultiSelect(document.getElementById('teamSelect'), { options: teamOptions, selected: ["2nd XI"] });
-initMultiSelect(document.getElementById('seasonSelect'), { options: seasonOptions, selected: ["2026"] });
+async function loadFilters(){
+  const [teams, seasons, players] = await Promise.all([
+    fetch('/api/teams').then(r => r.json()),
+    fetch('/api/seasons').then(r => r.json()),
+    fetch('/api/players').then(r => r.json()),
+  ]);
+
+  teamOptions = teams;
+  seasonOptions = seasons.map(String);
+  const latestSeason = seasonOptions[0]; // /api/seasons is ordered DESC
+
+  teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
+    options: teamOptions, selected: teamOptions, onChange: loadStats
+  });
+  seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
+    options: seasonOptions, selected: [latestSeason], onChange: loadStats
+  });
+  compMsel = initMultiSelect(document.getElementById('compSelect'), {
+    options: compOptions, selected: compOptions, onChange: loadStats
+  });
+
+  const playerPick = document.getElementById('playerPick');
+  playerPick.innerHTML = '<option value="">Any player</option>' +
+    players.map(p => `<option value="${p}">${p}</option>`).join('');
+}
 
 // ---- Horizontal-scroll hint for the results table ----
 function initScrollHint(container){
@@ -474,6 +554,11 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('barwellcc-theme', next);
 });
+
+(async function init(){
+  renderEmpty('Choose your search criteria, then tap Retrieve details');
+  await loadFilters();
+})();
 </script>
 </body>
 </html>

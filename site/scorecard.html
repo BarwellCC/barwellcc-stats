@@ -160,6 +160,7 @@
   tbody tr:last-child td{ border-bottom: none; }
   tbody tr:nth-child(even){ background: var(--row-even); }
   td.name{ font-weight: 500; }
+  thead th.how-out{ text-align:left; }
   td.how-out{ text-align:left; color: var(--ink-soft); }
   .not-out{ color: var(--accent); font-weight: 600; }
   tr.dnb td{ color: var(--ink-soft); font-style: italic; }
@@ -261,7 +262,7 @@
 </div>
 
 <script>
-const resultLabel = {W:"Won", L:"Lost", T:"Tied", D:"Drawn", A:"Abandoned", C:"Cancelled"};
+const resultLabel = {W:"Won", L:"Lost", T:"Tied", D:"Drawn", A:"Abandoned", C:"Cancelled", CON:"Conceded"};
 
 const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -307,13 +308,13 @@ function renderHeader(match, usInnings, oppInnings){
     document.getElementById('oppScoreOvers').textContent = `${oppInnings.overs} overs`;
   }
 
-  const label = resultLabel[match.result] || match.result;
+  const summary = match.resultSummary || resultLabel[match.result] || match.result;
   document.getElementById('matchResult').innerHTML =
-    `<span class="result-pill ${match.result}">${match.result}</span> Result: ${label}`;
+    `<span class="result-pill ${match.result}">${match.result}</span> ${summary}`;
 }
 
 function renderBatting(batting, extras, teamTotal){
-  document.getElementById("battingHead").innerHTML = battingCols.map(c => `<th>${c.label}</th>`).join("");
+  document.getElementById("battingHead").innerHTML = battingCols.map(c => `<th class="${c.key === 'howOut' ? 'how-out' : ''}">${c.label}</th>`).join("");
   const rows = batting.map(r => {
     const howOut = r.how_out || '';
     const dnb = howOut === "did not bat";

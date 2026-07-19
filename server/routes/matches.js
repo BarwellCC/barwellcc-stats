@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { describeResult } = require('../resultMargin');
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.get('/matches/:id', (req, res) => {
 
   const usInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 1').get(id);
   const oppInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 0').get(id);
+  match.resultSummary = describeResult(match.result, usInnings, oppInnings);
 
   // Abandoned/conceded matches can carry a result code with no parsed
   // scorecard - respond with empty tables rather than crashing on a

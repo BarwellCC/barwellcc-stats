@@ -4,6 +4,7 @@ const { openDb } = require('./db');
 const { insertMatch } = require('./insertMatch');
 const { parseMatchDetail } = require('./parseMatchDetail');
 const { parseFixture } = require('./parseFixture');
+const { deriveFielding } = require('./deriveFielding');
 
 const API_TOKEN = process.env.PLAY_CRICKET_API_TOKEN;
 const SITE_ID = process.env.PLAY_CRICKET_SITE_ID;
@@ -93,6 +94,12 @@ async function syncSeason(season) {
     upcoming += 1;
   }
   console.log(`Stored ${upcoming} upcoming fixtures.`);
+
+  // Catches/stumpings aren't in the scorecard payload as their own field -
+  // they're derived from dismissal text on the batting side, so this has to
+  // re-run after every sync rather than being written once per match.
+  const { rows, unmatched } = deriveFielding(db);
+  console.log(`Derived ${rows} fielding_performances rows (${unmatched} dismissals had no matching player).`);
 
   db.close();
 }

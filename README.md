@@ -19,10 +19,32 @@
   and stores it.
 - **`scripts/matchPlayers.js`** — reconciles Hitssports player names against
   known Play-Cricket players (see "Player matching" below).
+- **`scripts/deriveFielding.js`** — rebuilds `fielding_performances`
+  (catches/stumpings/run-outs) from `batting_performances.fielder_name`,
+  since Play-Cricket doesn't give fielding figures directly. Runs
+  automatically at the end of `npm run sync`; `npm run derive-fielding` runs
+  it standalone. See the gotchas in "Running the real site locally" below.
+- **`server/routes/averages.js`** — real batting/bowling averages
+  (`GET /api/averages?team=&season=&comp=`), aggregated in JS from raw
+  performance rows rather than in SQL, since cricket-specific rules (overs
+  in n.b notation, excluding "did not bat", the not-out asterisk on high
+  score) don't map cleanly onto plain SQL aggregates.
+- **`server/routes/stats.js`** — real per-innings search: `GET /api/players`
+  (every real Barwell player, for the search dropdown) and
+  `GET /api/stats/batting` / `GET /api/stats/bowling`
+  (`?player=&team=&season=&comp=&min=&max=`), each returning individual
+  matching innings rather than season aggregates, same shape as
+  Play-Cricket's own player-search page.
+- **`server/resultMargin.js`** — turns a match result code + both innings
+  into the wording used on Fixtures and the Scorecard ("Won by 4 wickets",
+  "Won by 23 runs", "Tied", ...), shared by `server/routes/fixtures.js` and
+  `server/routes/matches.js` so the phrasing only lives in one place. See
+  the `innings_number` gotcha below if you touch this.
 - **`test/`** — an end-to-end test using the real sample payload from
-  Play-Cricket's own API documentation, plus a player-matching test built from
-  Barwell's actual 2026 Hitssports export names. Run both with `npm test`. All
-  checks currently pass.
+  Play-Cricket's own API documentation, a player-matching test built from
+  Barwell's actual 2026 Hitssports export names, and a fielding-derivation
+  test covering the is_us join-direction gotcha. Run all three with
+  `npm test`. All checks currently pass.
 - **`mockups/averages-refresh.html`, `mockups/stats-refresh.html`,
   `mockups/fixtures-refresh.html`, `mockups/scorecard-refresh.html`
   (+ 3 sibling scorecard mockups)** — visual-refresh designs for the
@@ -113,12 +135,15 @@ them and I'll help track them down.
 4. **Historic import** — once matching is solid on this season (where we can
    cross-check against real Play-Cricket data), the same approach applies to
    older Hitssports-only seasons. Send those exports whenever you're ready.
-5. **Stats queries** — career averages, best figures, club records, milestones,
-   etc., computed from the combined data.
-6. **Frontend** — partly done: Fixtures and Scorecard are real (see below).
-   Averages and Stats still need real aggregation queries (and, for
-   Averages' Catches/Stumpings columns, a `fielding_performances` derivation
-   script — that table exists in the schema but nothing populates it yet).
+5. ~~**Stats queries**~~ — done: `GET /api/stats/batting` and
+   `GET /api/stats/bowling` return individual innings (not aggregated
+   season figures like Averages) so you can search/sort/filter by player,
+   team(s), season(s), fixture type, and a score/wickets range - the same
+   shape as Play-Cricket's own player-search page. Career records/milestones
+   (e.g. "highest score ever", "most wickets in a match") aren't built yet -
+   nothing's stopping them, there's just been no request for that view yet.
+6. **Frontend** — done: Fixtures, Scorecard, Averages and Stats are all real
+   (see below). Nothing left mockup-only.
 7. **Scheduling + hosting** — wiring `npm run sync` into a free nightly GitHub
    Actions job, and picking somewhere free/cheap to host the site itself.
 
@@ -129,21 +154,64 @@ npm run dev
 ```
 Opens an Express server on `http://localhost:4000` serving `site/` (the real,
 data-wired pages) plus a small JSON API under `/api/*` — `GET /api/fixtures`,
-`/api/teams`, `/api/seasons`, `/api/matches/:id`, all querying
+`/api/teams`, `/api/seasons`, `/api/matches/:id`, `/api/players`,
+`/api/averages`, `/api/stats/batting`, `/api/stats/bowling`, all querying
 `data/barwellcc.db` directly via `better-sqlite3` (see `server/`).
-`site/fixtures.html` and `site/scorecard.html` are fully live — real fixtures
-for any team/season, click any completed match for its real scorecard.
-`site/averages.html` and `site/stats.html` are copied over unmodified for
-now, still showing illustrative mockup data (step 6 above).
+`site/fixtures.html`, `site/scorecard.html`, `site/averages.html` and
+`site/stats.html` are all fully live now — real fixtures for any
+team/season, click any completed match for its real scorecard, real
+batting/bowling averages with sortable columns, and a real per-innings
+search across every player/team/season/fixture-type combination.
 
 `mockups/*.html` stay untouched as the approved design reference (per
 `DESIGN.md`) — `site/` is where the real, wired-up copies live, not the same
-files. Two non-obvious things worth knowing if you touch `server/routes/`:
-`bowling_performances` rows on an innings belong to whichever team did *not*
-bat that innings (a real bug hit and fixed twice already in this project —
-join through the opposition's batting innings for "our" bowling figures),
-and the `not_out` column is always `0` even for genuine not-outs — derive it
-from `how_out IN ('not out', 'retired not out')` instead.
+files. A few non-obvious things worth knowing if you touch `server/routes/`
+or `scripts/deriveFielding.js`:
+
+- `bowling_performances` rows on an innings belong to whichever team did
+  *not* bat that innings (a real bug hit and fixed twice already in this
+  project — join through the opposition's batting innings for "our" bowling
+  figures), and the same is true of `batting_performances.fielder_name` —
+  the fielder named on a dismissal belongs to whichever team did *not* bat
+  that innings, so `fielding_performances` is only ever derived from
+  `is_us = 0` innings.
+- the `not_out` column is always `0` even for genuine not-outs — derive it
+  from `how_out IN ('not out', 'retired not out')` instead.
+- `how_out = 'did not bat'` is a real row Play-Cricket includes for every
+  player in the XI who never came in to bat (not the same as `not out`) —
+  it has to be excluded from innings-played/runs/average, but still counts
+  towards matches-played, since it means the player was in the squad.
+- `overs` (on `bowling_performances`) is cricket n.b notation, not a real
+  decimal — `4.3` means 4 overs and 3 balls (27 balls), not 4.3 overs.
+  Summing or averaging overs needs converting to balls first
+  (`oversToBalls`/`ballsToOvers` in `server/routes/averages.js`).
+- Play-Cricket sometimes records an unidentified player as the literal
+  string `"Unsure"` - as a dismissal's fielder (usually adult scorecards),
+  and occasionally as the batsman/bowler themselves (seen on junior
+  scorecards, where the scorer doesn't always know every child's name).
+  Either way `"Unsure"` isn't one real person - it's several different
+  unidentified individuals collapsed into a single row in `players`, since
+  `getOrCreatePlayer` matches by exact name. `scripts/deriveFielding.js`,
+  `server/routes/stats.js` and `server/routes/averages.js` all exclude it
+  explicitly (`p.name != 'Unsure'` / a name check) rather than crediting a
+  "player" called Unsure with real people's runs, wickets or catches. If you
+  add another query that joins through `players`, check whether it needs
+  the same exclusion.
+- `innings.innings_number` looks like it should tell you which side batted
+  first, but doesn't - Play-Cricket sends `1` for both sides on every
+  single-innings-per-side match (confirmed against their own documented
+  sample payload in `test/sample-match-detail.json`), because it means
+  "this team's Nth innings", not "Nth innings of the match". Batting order
+  is instead inferred from `innings.id` (`scripts/insertMatch.js` inserts
+  both innings in Play-Cricket's own listed order, inside one transaction,
+  every sync - lower id batted first). See `server/resultMargin.js`, which
+  needs batting order to tell "won by wickets" (second side batted, beat the
+  target) from "won by runs" (first side defended a total) apart.
+
+Run `npm run derive-fielding` any time `fielding_performances` needs
+rebuilding from scratch (it also runs automatically at the end of
+`npm run sync`, so this is only needed if you're testing the derivation
+script in isolation).
 
 ## ~~Known gap: upcoming fixtures aren't stored yet~~ — fixed
 

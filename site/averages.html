@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Barwell CC — Averages (visual refresh mockup)</title>
+<title>Barwell CC — Averages</title>
 <script>
 // Applied before paint so a stored preference doesn't flash the other theme.
 (function(){
@@ -216,7 +216,7 @@
     <div class="filter-group">
       <span class="filter-label">Team</span>
       <div class="msel" id="teamSelect">
-        <button type="button" class="msel-btn"><span class="msel-label">1st XI</span><span class="msel-arrow">▾</span></button>
+        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
         <div class="msel-panel"></div>
       </div>
     </div>
@@ -232,7 +232,7 @@
     <div class="filter-group season-group">
       <span class="filter-label">Season</span>
       <div class="msel" id="seasonSelect">
-        <button type="button" class="msel-btn"><span class="msel-label">2025</span><span class="msel-arrow">▾</span></button>
+        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
         <div class="msel-panel"></div>
       </div>
     </div>
@@ -258,52 +258,13 @@
     </div>
   </div>
 
-  <div class="note">Mockup only — Team and Season support picking one or several; tap any column heading to sort. Swipe a table sideways on a phone to see every column (the player name stays put).</div>
+  <div class="note">Real data from the synced Play-Cricket database. Team, Season and Fixture Type all filter the tables above; tap any column heading to sort. Swipe a table sideways on a phone to see every column (the player name stays put).</div>
 
 </div>
 
 <script>
-// Real Barwell CC 1st XI, 2025 League data, as currently shown on the Hitssports averages page.
-const batting = [
-  {name:"Adam Stapleford-Jones", m:20, i:20, no:6, runs:861, high:"112*", avg:61.50, fours:113, sixes:3, hundreds:4, fifties:4, ct:12, st:0},
-  {name:"Ahad Saiyed", m:10, i:10, no:3, runs:427, high:"142*", avg:61.00, fours:46, sixes:17, hundreds:2, fifties:0, ct:1, st:0},
-  {name:"Kyle Chamberlain", m:15, i:14, no:4, runs:447, high:"93*", avg:44.70, fours:64, sixes:1, hundreds:0, fifties:3, ct:3, st:0},
-  {name:"Phil Crouch", m:18, i:11, no:1, runs:297, high:"78", avg:29.70, fours:37, sixes:2, hundreds:0, fifties:2, ct:7, st:0},
-  {name:"Guy Norris", m:4, i:2, no:1, runs:28, high:"22", avg:28.00, fours:2, sixes:1, hundreds:0, fifties:0, ct:1, st:0},
-  {name:"James Millinship", m:17, i:11, no:4, runs:192, high:"35", avg:27.43, fours:23, sixes:0, hundreds:0, fifties:0, ct:2, st:0},
-  {name:"Liam O'Rourke", m:19, i:13, no:5, runs:188, high:"49*", avg:23.50, fours:14, sixes:9, hundreds:0, fifties:0, ct:5, st:0},
-  {name:"Pavan Singh", m:6, i:3, no:1, runs:46, high:"22", avg:23.00, fours:8, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
-  {name:"Danny Moran", m:21, i:16, no:2, runs:317, high:"65", avg:22.64, fours:40, sixes:4, hundreds:0, fifties:2, ct:21, st:2},
-  {name:"Max Hines", m:4, i:3, no:0, runs:64, high:"24", avg:21.33, fours:10, sixes:0, hundreds:0, fifties:0, ct:1, st:0},
-  {name:"George Rolfe", m:22, i:9, no:4, runs:103, high:"21", avg:20.60, fours:12, sixes:2, hundreds:0, fifties:0, ct:4, st:0},
-  {name:"Oliver Richings", m:21, i:20, no:0, runs:412, high:"77", avg:20.60, fours:60, sixes:0, hundreds:0, fifties:3, ct:3, st:0},
-  {name:"Sam Taylor", m:1, i:1, no:0, runs:15, high:"15", avg:15.00, fours:3, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
-  {name:"Jack Smith", m:17, i:13, no:0, runs:192, high:"51", avg:14.77, fours:26, sixes:3, hundreds:0, fifties:1, ct:2, st:0},
-  {name:"Ady Baker", m:21, i:5, no:4, runs:14, high:"9*", avg:14.00, fours:2, sixes:0, hundreds:0, fifties:0, ct:4, st:0},
-  {name:"Lee Skene", m:13, i:5, no:2, runs:20, high:"15*", avg:6.67, fours:2, sixes:0, hundreds:0, fifties:0, ct:3, st:0},
-  {name:"Thomas Middleton", m:2, i:1, no:0, runs:4, high:"4", avg:4.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:1, st:0},
-  {name:"Brad Harvey", m:7, i:4, no:1, runs:8, high:"4*", avg:2.67, fours:0, sixes:0, hundreds:0, fifties:0, ct:3, st:0},
-  {name:"Nick Hines", m:2, i:1, no:0, runs:1, high:"1", avg:1.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
-  {name:"Ben Betteridge", m:1, i:1, no:0, runs:0, high:"0", avg:0.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
-  {name:"Josh Robins", m:1, i:1, no:1, runs:1, high:"1*", avg:0.00, fours:0, sixes:0, hundreds:0, fifties:0, ct:0, st:0},
-];
-
-const bowling = [
-  {name:"James Millinship", m:1, overs:1.0, mdns:0, runs:4, wkts:1, best:"1-4", fivew:0, avg:4.00, econ:4.00},
-  {name:"Nick Hines", m:2, overs:2.2, mdns:0, runs:23, wkts:2, best:"2-19", fivew:0, avg:11.50, econ:9.86},
-  {name:"Kyle Chamberlain", m:10, overs:55.2, mdns:3, runs:281, wkts:15, best:"6-40", fivew:1, avg:18.73, econ:5.08},
-  {name:"Phil Crouch", m:18, overs:155.0, mdns:27, runs:547, wkts:25, best:"4-18", fivew:0, avg:21.88, econ:3.53},
-  {name:"Oliver Richings", m:19, overs:109.0, mdns:7, runs:602, wkts:23, best:"4-37", fivew:0, avg:26.17, econ:5.52},
-  {name:"Max Hines", m:4, overs:14.0, mdns:0, runs:110, wkts:4, best:"2-21", fivew:0, avg:27.50, econ:7.86},
-  {name:"George Rolfe", m:22, overs:147.0, mdns:20, runs:774, wkts:27, best:"4-39", fivew:0, avg:28.67, econ:5.27},
-  {name:"Liam O'Rourke", m:19, overs:135.3, mdns:10, runs:840, wkts:24, best:"4-43", fivew:0, avg:35.00, econ:6.20},
-  {name:"Ahad Saiyed", m:3, overs:10.3, mdns:2, runs:73, wkts:2, best:"2-26", fivew:0, avg:36.50, econ:6.95},
-  {name:"Ady Baker", m:20, overs:126.5, mdns:3, runs:689, wkts:18, best:"4-40", fivew:0, avg:38.28, econ:5.43},
-  {name:"Ben Betteridge", m:1, overs:5.0, mdns:0, runs:46, wkts:1, best:"1-46", fivew:0, avg:46.00, econ:9.20},
-  {name:"Lee Skene", m:13, overs:80.4, mdns:6, runs:433, wkts:9, best:"2-27", fivew:0, avg:48.11, econ:5.37},
-  {name:"Josh Robins", m:1, overs:2.0, mdns:0, runs:16, wkts:0, best:"0-16", fivew:0, avg:0.00, econ:8.00},
-  {name:"Jack Smith", m:1, overs:2.0, mdns:0, runs:21, wkts:0, best:"0-21", fivew:0, avg:0.00, econ:10.50},
-];
+let batting = [];
+let bowling = [];
 
 const battingCols = [
   {key:"name", label:"Player"}, {key:"m", label:"M"}, {key:"i", label:"I"}, {key:"no", label:"NO"},
@@ -329,7 +290,7 @@ function renderTable(data, cols, headEl, bodyEl, opts){
         if (c.key === "high" && typeof val === "string" && val.includes("*")) {
           return `<td>${val.replace("*", "")}<span class="not-out">*</span></td>`;
         }
-        if (c.key === "avg" || c.key === "econ") return `<td>${Number(val).toFixed(1)}</td>`;
+        if (c.key === "avg" || c.key === "econ") return `<td>${val == null ? '-' : Number(val).toFixed(1)}</td>`;
         return `<td>${val}</td>`;
       }).join("");
       return `<tr class="${isTop ? 'top-row' : ''}">${cells}</tr>`;
@@ -349,6 +310,10 @@ function renderTable(data, cols, headEl, bodyEl, opts){
       const sorted = [...data].sort((a, b) => {
         let av = a[col.key], bv = b[col.key];
         if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
+        // No-dismissal (null) averages always sort to the bottom, whichever direction is active.
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
         if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sortState.dir;
         return (av - bv) * sortState.dir;
       });
@@ -357,12 +322,16 @@ function renderTable(data, cols, headEl, bodyEl, opts){
   });
 }
 
-renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"), {
-  topCheck: r => r.name === batting.reduce((a,b) => b.runs > a.runs ? b : a).name
-});
-renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"), {
-  topCheck: r => r.name === bowling.reduce((a,b) => b.wkts > a.wkts ? b : a).name
-});
+function renderBattingTable(){
+  renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"), {
+    topCheck: r => batting.length > 0 && r.name === batting.reduce((a,b) => b.runs > a.runs ? b : a).name
+  });
+}
+function renderBowlingTable(){
+  renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"), {
+    topCheck: r => bowling.length > 0 && r.name === bowling.reduce((a,b) => b.wkts > a.wkts ? b : a).name
+  });
+}
 
 // ---- Reusable single/multi-select dropdown ----
 function initMultiSelect(root, {options, selected, labelForNone, onChange}){
@@ -416,20 +385,56 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   return { get selected(){ return [...state]; } };
 }
 
-const teamOptions = ["1st XI","2nd XI","3rd XI","Midweek XI","Midweek 2nd XI","Sunday XI","Past Overseas Players"];
-const seasonOptions = ["2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009"];
-
-const teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
-  options: teamOptions, selected: ["1st XI"]
-});
-const seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
-  options: seasonOptions, selected: ["2025"]
-});
-
 const compOptions = ["League", "Cup", "Friendly"];
-const compMsel = initMultiSelect(document.getElementById('compSelect'), {
-  options: compOptions, selected: compOptions
-});
+let compMsel;
+let teamOptions = [];
+let seasonOptions = [];
+let teamMsel, seasonMsel;
+
+async function loadAverages(){
+  const teams = teamMsel.selected;
+  const seasons = seasonMsel.selected;
+  const comps = compMsel.selected;
+
+  if (teams.length === 0 || seasons.length === 0 || comps.length === 0) {
+    batting = [];
+    bowling = [];
+    renderBattingTable();
+    renderBowlingTable();
+    return;
+  }
+
+  const params = new URLSearchParams();
+  if (teams.length < teamOptions.length) params.set('team', teams.join(','));
+  if (seasons.length < seasonOptions.length) params.set('season', seasons.join(','));
+  if (comps.length < compOptions.length) params.set('comp', comps.join(','));
+
+  const res = await fetch(`/api/averages?${params}`);
+  const data = await res.json();
+  batting = [...data.batting].sort((a, b) => b.runs - a.runs);
+  bowling = [...data.bowling].sort((a, b) => b.wkts - a.wkts);
+  renderBattingTable();
+  renderBowlingTable();
+}
+
+async function loadTeamsAndSeasons(){
+  const [teams, seasons] = await Promise.all([
+    fetch('/api/teams').then(r => r.json()),
+    fetch('/api/seasons').then(r => r.json()),
+  ]);
+
+  teamOptions = teams;
+  seasonOptions = seasons.map(String);
+  const latestSeason = seasonOptions[0]; // /api/seasons is ordered DESC
+
+  teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
+    options: teamOptions, selected: teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1),
+    onChange: loadAverages
+  });
+  seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
+    options: seasonOptions, selected: [latestSeason], onChange: loadAverages
+  });
+}
 
 // ---- Horizontal-scroll hint for tables (shows a fade only when there's more to scroll) ----
 function initScrollHint(container){
@@ -455,6 +460,14 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('barwellcc-theme', next);
 });
+
+(async function init(){
+  compMsel = initMultiSelect(document.getElementById('compSelect'), {
+    options: compOptions, selected: compOptions, onChange: loadAverages
+  });
+  await loadTeamsAndSeasons();
+  await loadAverages();
+})();
 </script>
 </body>
 </html>

@@ -306,7 +306,7 @@ function renderTable(data, headEl, bodyEl){
       const upcoming = !r.result;
       const resultCell = upcoming
         ? `<span class="upcoming-text">Upcoming</span>`
-        : `<a class="result-link" href="${r.sc}"><span class="result-pill ${r.result}">${r.result}</span><span class="score-text">${r.us} v ${r.opp_score}</span></a>`;
+        : `<a class="result-link" href="${r.sc}"><span class="result-pill ${r.result}">${r.result}</span><span class="score-text">${r.resultSummary}</span></a>`;
       return `<tr class="${upcoming ? 'upcoming' : 'completed'}" data-sc="${r.sc}">
         <td>${formatDate(r.date)}</td>
         <td class="opp">${r.opp}</td>
