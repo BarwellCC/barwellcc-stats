@@ -1,0 +1,69 @@
+name: Sync and deploy site
+
+# Nightly: re-sync the current season from Play-Cricket and republish.
+# Also on every push to main, so a code change goes live immediately
+# instead of waiting for the next nightly run - and manually dispatchable
+# for testing or an out-of-band refresh (e.g. right after a Saturday match).
+on:
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC every night
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment at a time; a newer run supersedes one still in flight
+# rather than queuing behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Re-syncs the current season's results/fixtures from Play-Cricket into
+      # a fresh data/barwellcc.db (gitignored - this job doesn't commit it,
+      # it's rebuilt from scratch every run). Historic seasons, once
+      # imported, are expected to be checked into the repo directly instead,
+      # since they can't be re-fetched from Play-Cricket's API - see
+      # README.md step 4.
+      - name: Sync from Play-Cricket
+        run: npm run sync
+        env:
+          PLAY_CRICKET_API_TOKEN: ${{ secrets.PLAY_CRICKET_API_TOKEN }}
+          PLAY_CRICKET_SITE_ID: ${{ secrets.PLAY_CRICKET_SITE_ID }}
+          PLAY_CRICKET_CLUB_ID: ${{ secrets.PLAY_CRICKET_CLUB_ID }}
+
+      - name: Build static JSON for the site
+        run: npm run build-static
+
+      - name: Run tests
+        run: npm test
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

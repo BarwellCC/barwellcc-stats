@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const { parseMatchDetail } = require('../scripts/parseMatchDetail');
 const { insertMatch } = require('../scripts/insertMatch');
-const { describeResult } = require('../server/resultMargin');
+const { describeResult } = require('../site/js/cricket-calc');
 
 const sample = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'sample-match-detail.json'), 'utf8')

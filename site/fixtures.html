@@ -399,6 +399,7 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
 
 const compOptions = ["League", "Cup", "Friendly"];
 let compMsel;
+let allMatches = [];
 
 function applyCompFilter(selectedComps){
   const filtered = selectedComps.length === 0
@@ -407,19 +408,23 @@ function applyCompFilter(selectedComps){
   renderTable(filtered, document.getElementById("fixturesHead"), document.getElementById("fixturesBody"));
 }
 
-async function loadFixtures(){
+function loadFixtures(){
   const team = document.getElementById('teamPick').value;
-  const season = document.getElementById('seasonPick').value;
-  const res = await fetch(`/api/fixtures?team=${encodeURIComponent(team)}&season=${encodeURIComponent(season)}`);
-  fixtures = await res.json();
+  const season = Number(document.getElementById('seasonPick').value);
+  fixtures = allMatches
+    .filter(m => m.team === team && m.season === season)
+    .map(m => ({
+      date: m.date, opp: m.opp, venue: m.venue, comp: m.comp, result: m.result,
+      resultSummary: m.resultSummary, sc: `scorecard.html?id=${m.id}`,
+    }));
   applyCompFilter(compMsel.selected);
 }
 
 async function loadTeamsAndSeasons(){
-  const [teams, seasons] = await Promise.all([
-    fetch('/api/teams').then(r => r.json()),
-    fetch('/api/seasons').then(r => r.json()),
-  ]);
+  allMatches = await fetch('data/matches.json').then(r => r.json());
+
+  const teams = [...new Set(allMatches.map(m => m.team))].sort();
+  const seasons = [...new Set(allMatches.map(m => m.season))].sort((a, b) => b - a);
 
   const teamPick = document.getElementById('teamPick');
   teamPick.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join('');

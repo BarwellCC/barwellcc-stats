@@ -7,11 +7,12 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js",
+    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js && node test/buildStatic.test.js",
     "sync": "node scripts/sync-playcricket.js",
     "derive-fielding": "node scripts/deriveFielding.js",
+    "build-static": "node scripts/buildStatic.js",
     "match-players": "node scripts/matchPlayers.js",
-    "dev": "node server/index.js",
+    "dev": "node scripts/buildStatic.js && node server/index.js",
     "start": "node server/index.js"
   },
   "keywords": [],

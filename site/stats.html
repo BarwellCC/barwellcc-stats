@@ -126,15 +126,25 @@
   .range-row{ display:flex; align-items:flex-end; gap: 10px; }
   .range-row .field{ flex: 1; }
   .range-and{ padding-bottom: 9px; font-size: 13px; color: var(--ink-soft); }
-  .search-footer{ display:flex; justify-content: stretch; }
-  .btn{
-    width: 100%;
-    font-family: 'Inter'; font-weight: 700; font-size: 14px; letter-spacing: 0.01em;
-    padding: 12px 22px; border-radius: 6px; border: none; cursor: pointer;
-    background: var(--maroon); color: var(--cream); transition: background .15s ease;
+  .wickets-row{
+    display:flex; align-items:center; flex-wrap:wrap; gap: 8px;
+    font-size: 14px; color: var(--ink); margin-bottom: 16px;
   }
-  .btn:hover{ background: #632424; }
-
+  .wickets-row select{
+    width: 62px; font-family: 'Inter'; font-size: 15px; font-weight: 600; padding: 8px 22px 8px 10px;
+    border-radius: 6px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink);
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%235B5548"/></svg>');
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .wickets-row select{
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
+    }
+  }
+  :root[data-theme="dark"] .wickets-row select{
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
+  }
   /* ---- Multi/single-select dropdown ---- */
   .msel{ position:relative; }
   .msel-btn{
@@ -207,6 +217,11 @@
   tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
 
+  tr.no-records td{
+    text-align: center; color: var(--ink-soft); font-style: italic;
+    padding: 22px 8px; position: static; background: none;
+  }
+
   .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -6px; margin-bottom: 20px; line-height:1.5; }
 
   /* ============ LARGER SCREENS ============ */
@@ -222,8 +237,6 @@
     .search-lead{ font-size: 12.5px; }
     .field-grid{ grid-template-columns: 1fr 1fr; gap: 14px 24px; }
     .field select, .field input, .msel-btn{ font-size: 14px; }
-    .search-footer{ justify-content: flex-end; }
-    .btn{ width: auto; padding: 10px 22px; font-size: 13.5px; }
 
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 12px; }
@@ -257,7 +270,7 @@
     <div class="field-grid">
       <div class="field">
         <label>Player</label>
-        <select id="playerPick"><option value="">Any player</option></select>
+        <select id="playerPick"><option value="">--Select a Player--</option></select>
       </div>
       <div class="field">
         <label>Team</label>
@@ -281,9 +294,9 @@
         </div>
       </div>
     </div>
-    <div class="range-row" style="max-width: 340px; margin-bottom:16px;">
+    <div class="range-row" id="scoreRangeRow" style="max-width: 340px; margin-bottom:16px;">
       <div class="field">
-        <label id="scoreMinLabel">Scores between</label>
+        <label>Scores between</label>
         <input type="text" inputmode="numeric" placeholder="no lower limit" id="scoreMin">
       </div>
       <div class="range-and">and</div>
@@ -291,8 +304,22 @@
         <input type="text" inputmode="numeric" placeholder="no upper limit" id="scoreMax" style="margin-top: 21px;">
       </div>
     </div>
-    <div class="search-footer">
-      <button class="btn" id="searchBtn" type="button">Retrieve details</button>
+    <div class="wickets-row" id="wicketsRow" style="display:none;">
+      <span>Show performances with</span>
+      <select id="minWickets">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5" selected>5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <span>wickets or more.</span>
     </div>
   </div>
 
@@ -310,13 +337,20 @@
     </div>
   </div>
 
-  <div class="note">Real data from the synced Play-Cricket database. Leave Player as "Any player" to browse every innings matching the other filters. Tap a column heading to sort, and swipe sideways on a phone to see every column.</div>
+  <div class="note">Real data from the synced Play-Cricket database. Select a player above to search their innings. Tap a column heading to sort, and swipe sideways on a phone to see every column.</div>
 
 </div>
 
+<script src="js/cricket-calc.js"></script>
 <script>
 let activeTab = 'batting';
 let results = [];
+
+function numOrNull(v){
+  if (v === '') return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
 
 const dayMonths = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function formatDate(iso){
@@ -362,9 +396,9 @@ function cellHtml(r, c){
 
 function draw(rows){
   const cols = currentCols();
-  document.getElementById("resultsBody").innerHTML = rows.map(r =>
-    `<tr>${cols.map(c => cellHtml(r, c)).join("")}</tr>`
-  ).join("");
+  document.getElementById("resultsBody").innerHTML = rows.length
+    ? rows.map(r => `<tr>${cols.map(c => cellHtml(r, c)).join("")}</tr>`).join("")
+    : `<tr class="no-records"><td colspan="${cols.length}">No records to display.</td></tr>`;
 }
 
 function renderHead(){
@@ -404,7 +438,13 @@ function renderEmpty(message){
   document.getElementById('resultsCount').textContent = message;
 }
 
-async function loadStats(){
+function loadStats(){
+  const player = document.getElementById('playerPick').value;
+  if (!player) {
+    renderEmpty('Select a player above to see their innings');
+    return;
+  }
+
   const teams = teamMsel.selected;
   const seasons = seasonMsel.selected;
   const comps = compMsel.selected;
@@ -414,20 +454,24 @@ async function loadStats(){
     return;
   }
 
-  const player = document.getElementById('playerPick').value;
-  const min = document.getElementById('scoreMin').value.trim();
-  const max = document.getElementById('scoreMax').value.trim();
+  const filter = {
+    teams: teams.length < teamOptions.length ? teams : null,
+    seasons: seasons.length < seasonOptions.length ? seasons : null,
+    comps: comps.length < compOptions.length ? comps : null,
+    player,
+  };
 
-  const params = new URLSearchParams();
-  if (player) params.set('player', player);
-  if (teams.length < teamOptions.length) params.set('team', teams.join(','));
-  if (seasons.length < seasonOptions.length) params.set('season', seasons.join(','));
-  if (comps.length < compOptions.length) params.set('comp', comps.join(','));
-  if (min) params.set('min', min);
-  if (max) params.set('max', max);
+  if (activeTab === 'batting') {
+    filter.min = numOrNull(document.getElementById('scoreMin').value.trim());
+    filter.max = numOrNull(document.getElementById('scoreMax').value.trim());
+  } else {
+    filter.min = Number(document.getElementById('minWickets').value);
+    filter.max = null;
+  }
 
-  const res = await fetch(`/api/stats/${activeTab}?${params}`);
-  results = await res.json();
+  const rows = activeTab === 'batting' ? battingRows : bowlingRows;
+  const calc = activeTab === 'batting' ? CricketCalc.statsBatting : CricketCalc.statsBowling;
+  results = calc(rows, filter);
   renderHead();
   draw(results);
   document.getElementById('resultsCount').textContent = `${results.length} innings`;
@@ -437,15 +481,16 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
   activeTab = t.dataset.tab;
-  document.getElementById('scoreMinLabel').textContent = activeTab === 'batting' ? 'Scores between' : 'Wickets between';
+  document.getElementById('scoreRangeRow').style.display = activeTab === 'batting' ? 'flex' : 'none';
+  document.getElementById('wicketsRow').style.display = activeTab === 'bowling' ? 'flex' : 'none';
   loadStats();
 }));
 
-document.getElementById('searchBtn').addEventListener('click', loadStats);
 ['scoreMin', 'scoreMax'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') loadStats(); });
   document.getElementById(id).addEventListener('blur', loadStats);
 });
+document.getElementById('minWickets').addEventListener('change', loadStats);
 document.getElementById('playerPick').addEventListener('change', loadStats);
 
 // ---- Reusable single/multi-select dropdown (same component as the averages page) ----
@@ -504,17 +549,21 @@ let teamOptions = [];
 let seasonOptions = [];
 const compOptions = ["League", "Cup", "Friendly"];
 let teamMsel, seasonMsel, compMsel;
+let battingRows = [], bowlingRows = [];
 
 async function loadFilters(){
-  const [teams, seasons, players] = await Promise.all([
-    fetch('/api/teams').then(r => r.json()),
-    fetch('/api/seasons').then(r => r.json()),
-    fetch('/api/players').then(r => r.json()),
+  const [matches, batRows, bowlRows, players] = await Promise.all([
+    fetch('data/matches.json').then(r => r.json()),
+    fetch('data/batting.json').then(r => r.json()),
+    fetch('data/bowling.json').then(r => r.json()),
+    fetch('data/players.json').then(r => r.json()),
   ]);
+  battingRows = batRows;
+  bowlingRows = bowlRows;
 
-  teamOptions = teams;
-  seasonOptions = seasons.map(String);
-  const latestSeason = seasonOptions[0]; // /api/seasons is ordered DESC
+  teamOptions = [...new Set(matches.map(m => m.team))].sort();
+  seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);
+  const latestSeason = seasonOptions[0]; // sorted newest-first above
 
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
     options: teamOptions, selected: teamOptions, onChange: loadStats
@@ -527,7 +576,7 @@ async function loadFilters(){
   });
 
   const playerPick = document.getElementById('playerPick');
-  playerPick.innerHTML = '<option value="">Any player</option>' +
+  playerPick.innerHTML = '<option value="">--Select a Player--</option>' +
     players.map(p => `<option value="${p}">${p}</option>`).join('');
 }
 
@@ -556,7 +605,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 });
 
 (async function init(){
-  renderEmpty('Choose your search criteria, then tap Retrieve details');
+  renderEmpty('Select a player above to see their innings');
   await loadFilters();
 })();
 </script>

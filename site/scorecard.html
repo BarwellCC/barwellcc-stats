@@ -396,14 +396,15 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 
   let res;
   try {
-    res = await fetch(`/api/matches/${id}`);
+    res = await fetch(`data/scorecards/${id}.json`);
   } catch (err) {
-    showMessage('Could not reach the server. Is it running?');
+    showMessage('Could not load the scorecard data.');
     return;
   }
 
-  if (res.status === 404) { showMessage('Match not found.'); return; }
-  if (res.status === 409) { showMessage('This match hasn’t been played yet.'); return; }
+  // Scorecards only exist for matches with a result - an upcoming fixture
+  // or an unknown id both just come back 404 from a static file fetch.
+  if (res.status === 404) { showMessage('Match not found, or hasn’t been played yet.'); return; }
   if (!res.ok) { showMessage('Something went wrong loading this scorecard.'); return; }
 
   const { match, usInnings, oppInnings, batting, bowling } = await res.json();

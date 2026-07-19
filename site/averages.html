@@ -262,6 +262,7 @@
 
 </div>
 
+<script src="js/cricket-calc.js"></script>
 <script>
 let batting = [];
 let bowling = [];
@@ -390,8 +391,9 @@ let compMsel;
 let teamOptions = [];
 let seasonOptions = [];
 let teamMsel, seasonMsel;
+let battingRows = [], bowlingRows = [], fieldingRows = [];
 
-async function loadAverages(){
+function loadAverages(){
   const teams = teamMsel.selected;
   const seasons = seasonMsel.selected;
   const comps = compMsel.selected;
@@ -404,28 +406,32 @@ async function loadAverages(){
     return;
   }
 
-  const params = new URLSearchParams();
-  if (teams.length < teamOptions.length) params.set('team', teams.join(','));
-  if (seasons.length < seasonOptions.length) params.set('season', seasons.join(','));
-  if (comps.length < compOptions.length) params.set('comp', comps.join(','));
+  const filter = {
+    teams: teams.length < teamOptions.length ? teams : null,
+    seasons: seasons.length < seasonOptions.length ? seasons : null,
+    comps: comps.length < compOptions.length ? comps : null,
+  };
 
-  const res = await fetch(`/api/averages?${params}`);
-  const data = await res.json();
-  batting = [...data.batting].sort((a, b) => b.runs - a.runs);
-  bowling = [...data.bowling].sort((a, b) => b.wkts - a.wkts);
+  batting = CricketCalc.buildBatting(battingRows, fieldingRows, filter).sort((a, b) => b.runs - a.runs);
+  bowling = CricketCalc.buildBowling(bowlingRows, filter).sort((a, b) => b.wkts - a.wkts);
   renderBattingTable();
   renderBowlingTable();
 }
 
 async function loadTeamsAndSeasons(){
-  const [teams, seasons] = await Promise.all([
-    fetch('/api/teams').then(r => r.json()),
-    fetch('/api/seasons').then(r => r.json()),
+  const [matches, batRows, bowlRows, fieldRows] = await Promise.all([
+    fetch('data/matches.json').then(r => r.json()),
+    fetch('data/batting.json').then(r => r.json()),
+    fetch('data/bowling.json').then(r => r.json()),
+    fetch('data/fielding.json').then(r => r.json()),
   ]);
+  battingRows = batRows;
+  bowlingRows = bowlRows;
+  fieldingRows = fieldRows;
 
-  teamOptions = teams;
-  seasonOptions = seasons.map(String);
-  const latestSeason = seasonOptions[0]; // /api/seasons is ordered DESC
+  teamOptions = [...new Set(matches.map(m => m.team))].sort();
+  seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);
+  const latestSeason = seasonOptions[0]; // sorted newest-first above
 
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
     options: teamOptions, selected: teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1),

@@ -6,3 +6,4 @@ data/*.db-shm
 *.xlsx
 *.xls
 .claude/settings.local.json
+site/data/

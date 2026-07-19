@@ -24,27 +24,27 @@
   since Play-Cricket doesn't give fielding figures directly. Runs
   automatically at the end of `npm run sync`; `npm run derive-fielding` runs
   it standalone. See the gotchas in "Running the real site locally" below.
-- **`server/routes/averages.js`** — real batting/bowling averages
-  (`GET /api/averages?team=&season=&comp=`), aggregated in JS from raw
-  performance rows rather than in SQL, since cricket-specific rules (overs
-  in n.b notation, excluding "did not bat", the not-out asterisk on high
-  score) don't map cleanly onto plain SQL aggregates.
-- **`server/routes/stats.js`** — real per-innings search: `GET /api/players`
-  (every real Barwell player, for the search dropdown) and
-  `GET /api/stats/batting` / `GET /api/stats/bowling`
-  (`?player=&team=&season=&comp=&min=&max=`), each returning individual
-  matching innings rather than season aggregates, same shape as
-  Play-Cricket's own player-search page.
-- **`server/resultMargin.js`** — turns a match result code + both innings
-  into the wording used on Fixtures and the Scorecard ("Won by 4 wickets",
-  "Won by 23 runs", "Tied", ...), shared by `server/routes/fixtures.js` and
-  `server/routes/matches.js` so the phrasing only lives in one place. See
-  the `innings_number` gotcha below if you touch this.
+- **`site/js/cricket-calc.js`** — every cricket-specific calculation the site
+  needs (batting/bowling averages, the per-innings search, the "Won by N
+  wickets/runs" wording), as plain dependency-free functions that take
+  already-flattened row arrays. Loaded as a `<script>` tag by every page and
+  run **in the browser** — the site has no backend at request time, so
+  there's exactly one implementation of these rules, not a server copy and
+  a client copy that could drift apart.
+- **`scripts/buildStatic.js`** (`npm run build-static`) — the only thing
+  that still queries `data/barwellcc.db` directly. Dumps everything the
+  site needs into plain JSON under `site/data/` (matches, one scorecard per
+  played match, flat batting/bowling/fielding rows, the real-player list),
+  which the pages fetch once and hand to `cricket-calc.js`. Runs
+  automatically as part of `npm run dev` and at the end of the nightly
+  GitHub Action (see "Hosting" below).
 - **`test/`** — an end-to-end test using the real sample payload from
   Play-Cricket's own API documentation, a player-matching test built from
-  Barwell's actual 2026 Hitssports export names, and a fielding-derivation
-  test covering the is_us join-direction gotcha. Run all three with
-  `npm test`. All checks currently pass.
+  Barwell's actual 2026 Hitssports export names, a fielding-derivation test
+  covering the is_us join-direction gotcha, a result-margin test covering
+  the `innings_number` gotcha, and a build-static test that runs the whole
+  static-export pipeline end to end. Run all of them with `npm test`. All
+  checks currently pass.
 - **`mockups/averages-refresh.html`, `mockups/stats-refresh.html`,
   `mockups/fixtures-refresh.html`, `mockups/scorecard-refresh.html`
   (+ 3 sibling scorecard mockups)** — visual-refresh designs for the
@@ -135,8 +135,8 @@ them and I'll help track them down.
 4. **Historic import** — once matching is solid on this season (where we can
    cross-check against real Play-Cricket data), the same approach applies to
    older Hitssports-only seasons. Send those exports whenever you're ready.
-5. ~~**Stats queries**~~ — done: `GET /api/stats/batting` and
-   `GET /api/stats/bowling` return individual innings (not aggregated
+5. ~~**Stats queries**~~ — done: `CricketCalc.statsBatting`/`statsBowling`
+   (`site/js/cricket-calc.js`) return individual innings (not aggregated
    season figures like Averages) so you can search/sort/filter by player,
    team(s), season(s), fixture type, and a score/wickets range - the same
    shape as Play-Cricket's own player-search page. Career records/milestones
@@ -144,29 +144,47 @@ them and I'll help track them down.
    nothing's stopping them, there's just been no request for that view yet.
 6. **Frontend** — done: Fixtures, Scorecard, Averages and Stats are all real
    (see below). Nothing left mockup-only.
-7. **Scheduling + hosting** — wiring `npm run sync` into a free nightly GitHub
-   Actions job, and picking somewhere free/cheap to host the site itself.
+7. **Scheduling + hosting** — mostly done: `.github/workflows/deploy.yml`
+   re-syncs nightly, rebuilds the static JSON, and publishes to GitHub
+   Pages, on a public repo (free forever, no server to pay for or maintain).
+   What's left is manual GitHub-side setup only I can't do from here — see
+   "Hosting on GitHub Pages" below.
 
 ## Running the real site locally
 
 ```
 npm run dev
 ```
-Opens an Express server on `http://localhost:4000` serving `site/` (the real,
-data-wired pages) plus a small JSON API under `/api/*` — `GET /api/fixtures`,
-`/api/teams`, `/api/seasons`, `/api/matches/:id`, `/api/players`,
-`/api/averages`, `/api/stats/batting`, `/api/stats/bowling`, all querying
-`data/barwellcc.db` directly via `better-sqlite3` (see `server/`).
+Runs `npm run build-static` (regenerating `site/data/*.json` from whatever's
+currently in `data/barwellcc.db`), then starts a tiny Express server on
+`http://localhost:4000` that just serves `site/` as static files - nothing
+more. **The site has no backend at request time.** Every page fetches its
+data from `site/data/*.json` once on load and does all its own
+filtering/sorting/aggregation in the browser via `site/js/cricket-calc.js`.
+This was a deliberate rewrite (see `[[project-state]]`/git history around
+2026-07-19): the goal was free hosting on GitHub Pages, which can't run a
+live server or query a database, only serve files - so rather than building
+and maintaining two versions of the aggregation logic (one live, one
+static), the whole site now runs the static way even locally. What you see
+with `npm run dev` is *exactly* what gets published, not an approximation of
+it.
+
 `site/fixtures.html`, `site/scorecard.html`, `site/averages.html` and
-`site/stats.html` are all fully live now — real fixtures for any
-team/season, click any completed match for its real scorecard, real
-batting/bowling averages with sortable columns, and a real per-innings
-search across every player/team/season/fixture-type combination.
+`site/stats.html` are all fully live — real fixtures for any team/season,
+click any completed match for its real scorecard, real batting/bowling
+averages with sortable columns, and a real per-innings search across every
+player/team/season/fixture-type combination.
+
+If you change anything in `data/barwellcc.db` outside of `npm run dev`
+(e.g. running `npm run sync` in a separate terminal), re-run
+`npm run build-static` yourself to pick it up - the dev server doesn't
+watch the database, it only rebuilds once, at startup.
 
 `mockups/*.html` stay untouched as the approved design reference (per
-`DESIGN.md`) — `site/` is where the real, wired-up copies live, not the same
-files. A few non-obvious things worth knowing if you touch `server/routes/`
-or `scripts/deriveFielding.js`:
+`DESIGN.md`) — `site/` is where the real, wired-up pages live, not the same
+files. A few non-obvious things worth knowing if you touch
+`scripts/buildStatic.js`, `site/js/cricket-calc.js`, or
+`scripts/deriveFielding.js`:
 
 - `bowling_performances` rows on an innings belong to whichever team did
   *not* bat that innings (a real bug hit and fixed twice already in this
@@ -181,22 +199,35 @@ or `scripts/deriveFielding.js`:
   player in the XI who never came in to bat (not the same as `not out`) —
   it has to be excluded from innings-played/runs/average, but still counts
   towards matches-played, since it means the player was in the squad.
+- a handful of `how_out` values are `NULL`, not `'did not bat'` - genuine
+  completed innings (real runs, real balls faced) where Play-Cricket just
+  never recorded a dismissal method, seen so far only on junior scorecards
+  (e.g. an U11 "Incrediball" match). These need to be *included* as normal
+  innings, not filtered out - a SQL `how_out != 'did not bat'` clause
+  quietly drops them too, because SQL's `!=` never matches `NULL` (it
+  evaluates the whole comparison to `NULL`, which a `WHERE` treats as
+  "no"). Found this the hard way when `scripts/buildStatic.js`'s flat
+  `batting.json` (filtered in JS, `how_out !== 'did not bat'`, which does
+  **not** share that quirk) started showing 15 more real innings on the
+  Stats page than the old SQL-filtered version ever had - the fix was
+  keeping the JS behaviour and treating the old SQL version as the bug it
+  always was, not "matching" it.
 - `overs` (on `bowling_performances`) is cricket n.b notation, not a real
   decimal — `4.3` means 4 overs and 3 balls (27 balls), not 4.3 overs.
   Summing or averaging overs needs converting to balls first
-  (`oversToBalls`/`ballsToOvers` in `server/routes/averages.js`).
+  (`oversToBalls`/`ballsToOvers` in `site/js/cricket-calc.js`).
 - Play-Cricket sometimes records an unidentified player as the literal
   string `"Unsure"` - as a dismissal's fielder (usually adult scorecards),
   and occasionally as the batsman/bowler themselves (seen on junior
   scorecards, where the scorer doesn't always know every child's name).
   Either way `"Unsure"` isn't one real person - it's several different
   unidentified individuals collapsed into a single row in `players`, since
-  `getOrCreatePlayer` matches by exact name. `scripts/deriveFielding.js`,
-  `server/routes/stats.js` and `server/routes/averages.js` all exclude it
-  explicitly (`p.name != 'Unsure'` / a name check) rather than crediting a
-  "player" called Unsure with real people's runs, wickets or catches. If you
-  add another query that joins through `players`, check whether it needs
-  the same exclusion.
+  `getOrCreatePlayer` matches by exact name. `scripts/deriveFielding.js`
+  and every query in `scripts/buildStatic.js` that joins through `players`
+  exclude it explicitly (`p.name != 'Unsure'` / a name check) rather than
+  crediting a "player" called Unsure with real people's runs, wickets or
+  catches. If you add another query that joins through `players`, check
+  whether it needs the same exclusion.
 - `innings.innings_number` looks like it should tell you which side batted
   first, but doesn't - Play-Cricket sends `1` for both sides on every
   single-innings-per-side match (confirmed against their own documented
@@ -204,14 +235,41 @@ or `scripts/deriveFielding.js`:
   "this team's Nth innings", not "Nth innings of the match". Batting order
   is instead inferred from `innings.id` (`scripts/insertMatch.js` inserts
   both innings in Play-Cricket's own listed order, inside one transaction,
-  every sync - lower id batted first). See `server/resultMargin.js`, which
-  needs batting order to tell "won by wickets" (second side batted, beat the
-  target) from "won by runs" (first side defended a total) apart.
+  every sync - lower id batted first). See `describeResult` in
+  `site/js/cricket-calc.js`, which needs batting order to tell "won by
+  wickets" (second side batted, beat the target) from "won by runs" (first
+  side defended a total) apart.
 
 Run `npm run derive-fielding` any time `fielding_performances` needs
 rebuilding from scratch (it also runs automatically at the end of
 `npm run sync`, so this is only needed if you're testing the derivation
-script in isolation).
+script in isolation). Run `npm run build-static` any time `site/data/*.json`
+needs rebuilding from scratch (it also runs automatically at the start of
+`npm run dev`).
+
+## Hosting on GitHub Pages
+
+The site deploys itself: `.github/workflows/deploy.yml` runs nightly (and
+on every push to `main`, and can be triggered manually from the Actions
+tab), re-syncs the current season from Play-Cricket, rebuilds
+`site/data/*.json`, runs `npm test`, and publishes `site/` to GitHub Pages.
+Free forever on a public repo - no server, no hosting bill.
+
+Two things only a repo admin can set up (I can't do either from here):
+
+1. **Repo secrets** (Settings → Secrets and variables → Actions → New
+   repository secret) - the same three values from your local `.env`:
+   `PLAY_CRICKET_API_TOKEN`, `PLAY_CRICKET_SITE_ID`, `PLAY_CRICKET_CLUB_ID`.
+2. **Enable Pages** (Settings → Pages → Build and deployment → Source:
+   "GitHub Actions"). Until this is set, the workflow's `deploy` job will
+   fail even if `build` succeeds.
+
+Once both are done, the first run (push to `main`, or "Run workflow" on the
+Actions tab) publishes the site at `https://<username>.github.io/<repo>/`.
+Historic-season data, once imported (see step 4 above), doesn't come from
+this nightly sync - it can't be re-fetched from Play-Cricket - so it'll need
+checking into the repo directly and merging into `data/barwellcc.db` as a
+build step, which isn't built yet.
 
 ## ~~Known gap: upcoming fixtures aren't stored yet~~ — fixed
 
