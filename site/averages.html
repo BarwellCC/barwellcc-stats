@@ -165,16 +165,8 @@
   tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
 
-  tbody tr.top-row td.name{ position: relative; }
-  tbody tr.top-row td.name::before{
-    content:""; position:absolute; left:0; top:6px; bottom:6px; width: 3px;
-    background: var(--brass); border-radius: 2px;
-  }
-  tbody tr.top-row td.name{ padding-left: 14px; font-weight: 600; }
   td.name{ font-weight: 500; }
   .not-out{ color: var(--accent); font-weight: 600; }
-
-  .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -8px; margin-bottom: 24px; line-height:1.5; }
 
   /* ============ LARGER SCREENS ============ */
   @media (min-width: 640px){
@@ -193,7 +185,6 @@
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 10px; }
     tbody td{ padding: 9px 10px; }
-    .note{ font-size: 12.5px; }
   }
 </style>
 </head>
@@ -258,8 +249,6 @@
     </div>
   </div>
 
-  <div class="note">Real data from the synced Play-Cricket database. Team, Season and Fixture Type all filter the tables above; tap any column heading to sort. Swipe a table sideways on a phone to see every column (the player name stays put).</div>
-
 </div>
 
 <script src="js/cricket-calc.js"></script>
@@ -279,12 +268,11 @@ const bowlingCols = [
   {key:"fivew", label:"5W"}, {key:"avg", label:"Avg"}, {key:"econ", label:"Econ"},
 ];
 
-function renderTable(data, cols, headEl, bodyEl, opts){
+function renderTable(data, cols, headEl, bodyEl){
   headEl.innerHTML = cols.map((c,i) => `<th data-i="${i}">${c.label}<span class="arrow">▲</span></th>`).join("");
 
   function draw(rows){
     bodyEl.innerHTML = rows.map(r => {
-      const isTop = opts.topCheck(r);
       const cells = cols.map(c => {
         let val = r[c.key];
         if (c.key === "name") return `<td class="name">${val}</td>`;
@@ -294,7 +282,7 @@ function renderTable(data, cols, headEl, bodyEl, opts){
         if (c.key === "avg" || c.key === "econ") return `<td>${val == null ? '-' : Number(val).toFixed(1)}</td>`;
         return `<td>${val}</td>`;
       }).join("");
-      return `<tr class="${isTop ? 'top-row' : ''}">${cells}</tr>`;
+      return `<tr>${cells}</tr>`;
     }).join("");
   }
   draw(data);
@@ -324,14 +312,10 @@ function renderTable(data, cols, headEl, bodyEl, opts){
 }
 
 function renderBattingTable(){
-  renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"), {
-    topCheck: r => batting.length > 0 && r.name === batting.reduce((a,b) => b.runs > a.runs ? b : a).name
-  });
+  renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"));
 }
 function renderBowlingTable(){
-  renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"), {
-    topCheck: r => bowling.length > 0 && r.name === bowling.reduce((a,b) => b.wkts > a.wkts ? b : a).name
-  });
+  renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"));
 }
 
 // ---- Reusable single/multi-select dropdown ----

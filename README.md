@@ -144,11 +144,13 @@ them and I'll help track them down.
    nothing's stopping them, there's just been no request for that view yet.
 6. **Frontend** — done: Fixtures, Scorecard, Averages and Stats are all real
    (see below). Nothing left mockup-only.
-7. **Scheduling + hosting** — mostly done: `.github/workflows/deploy.yml`
-   re-syncs nightly, rebuilds the static JSON, and publishes to GitHub
-   Pages, on a public repo (free forever, no server to pay for or maintain).
-   What's left is manual GitHub-side setup only I can't do from here — see
-   "Hosting on GitHub Pages" below.
+7. ~~**Scheduling + hosting**~~ — done: live at
+   `https://barwellcc.github.io/barwellcc-stats/`.
+   `.github/workflows/deploy.yml` re-syncs nightly, rebuilds the static
+   JSON, runs `npm test`, and publishes to GitHub Pages, on a public repo
+   (free forever, no server to pay for or maintain). See "Hosting on GitHub
+   Pages" below for how it's wired and what to check if a nightly run ever
+   fails.
 
 ## Running the real site locally
 
@@ -249,23 +251,38 @@ needs rebuilding from scratch (it also runs automatically at the start of
 
 ## Hosting on GitHub Pages
 
-The site deploys itself: `.github/workflows/deploy.yml` runs nightly (and
-on every push to `main`, and can be triggered manually from the Actions
-tab), re-syncs the current season from Play-Cricket, rebuilds
-`site/data/*.json`, runs `npm test`, and publishes `site/` to GitHub Pages.
-Free forever on a public repo - no server, no hosting bill.
+**Live at `https://barwellcc.github.io/barwellcc-stats/`.** The site
+deploys itself: `.github/workflows/deploy.yml` runs nightly (and on every
+push to `main`, and can be triggered manually from the Actions tab),
+re-syncs the current season from Play-Cricket, rebuilds `site/data/*.json`,
+runs `npm test`, and publishes `site/` to GitHub Pages. Free forever on a
+public repo - no server, no hosting bill.
 
-Two things only a repo admin can set up (I can't do either from here):
+Getting from "workflow file exists" to actually live needed two settings
+only a repo admin can make (documented here in case this ever needs
+redoing on a fresh repo - I can't do either myself):
 
 1. **Repo secrets** (Settings → Secrets and variables → Actions → New
    repository secret) - the same three values from your local `.env`:
    `PLAY_CRICKET_API_TOKEN`, `PLAY_CRICKET_SITE_ID`, `PLAY_CRICKET_CLUB_ID`.
 2. **Enable Pages** (Settings → Pages → Build and deployment → Source:
-   "GitHub Actions"). Until this is set, the workflow's `deploy` job will
-   fail even if `build` succeeds.
+   "GitHub Actions"). Until this is set, the workflow's `deploy` job fails
+   even if `build` succeeds.
 
-Once both are done, the first run (push to `main`, or "Run workflow" on the
-Actions tab) publishes the site at `https://<username>.github.io/<repo>/`.
+...plus two real bugs that only surfaced once actually deployed (both
+fixed, see git history around 2026-07-19):
+
+- `data/` is gitignored (correctly - only the `.db` file inside it
+  shouldn't be tracked, not the directory), so a fresh CI checkout has no
+  `data/` directory at all, and `better-sqlite3` doesn't create missing
+  parent directories itself - `scripts/db.js`'s `openDb()` now does
+  (`fs.mkdirSync(path.dirname(dbPath), { recursive: true })`) before
+  opening the database. Worth remembering for any future gitignored-folder
+  case: gitignoring a file doesn't guarantee its directory exists elsewhere.
+- there was no page at `/` (only `fixtures/averages/scorecard/stats.html`),
+  so the bare Pages URL 404'd - `site/index.html` is a one-line meta-refresh
+  redirect to `fixtures.html`.
+
 Historic-season data, once imported (see step 4 above), doesn't come from
 this nightly sync - it can't be re-fetched from Play-Cricket - so it'll need
 checking into the repo directly and merging into `data/barwellcc.db` as a

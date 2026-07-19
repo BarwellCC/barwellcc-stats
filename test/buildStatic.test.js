@@ -41,11 +41,11 @@ const matches = readJson('matches.json');
 assert.strictEqual(matches.length, 1);
 assert.strictEqual(matches[0].id, matchId);
 assert.strictEqual(matches[0].result, 'L');
-assert.strictEqual(matches[0].resultSummary, 'Won by 9 wickets', 'margin stated from the winning side, not us');
+assert.strictEqual(matches[0].resultSummary, 'Lost by 9 wickets', 'verb follows the result (a loss for us)');
 console.log('matches.json: PASS');
 
 const scorecard = readJson(`scorecards/${matchId}.json`);
-assert.strictEqual(scorecard.match.resultSummary, 'Won by 9 wickets');
+assert.strictEqual(scorecard.match.resultSummary, 'Lost by 9 wickets');
 assert.strictEqual(scorecard.batting.length, 3, '3 batters in our (Chingford CC) innings');
 assert.strictEqual(scorecard.bowling.length, 1, 'only 1 bowler recorded in our bowling figures (the innings we bowled)');
 console.log('scorecards/{id}.json: PASS');

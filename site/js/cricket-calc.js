@@ -32,17 +32,18 @@
   }
 
   // Turns a match result code + both innings into the human-readable summary
-  // used on both the scorecard and fixtures pages ("Won by 4 wickets", "Won
-  // by 23 runs", "Tied", ...). States the margin from the WINNING side's own
-  // perspective, not "our" perspective - "Won by 4 wickets" is said whether
-  // Barwell won or lost, with the W/L result pill elsewhere on the page
-  // carrying the us-relative meaning. Getting the margin right needs knowing
-  // which side batted first, which `innings.innings_number` can't tell you -
-  // Play-Cricket sends `1` for every single-innings-per-side match on both
-  // sides. The `innings` table's own autoincrementing `id` is the reliable
-  // signal instead: scripts/insertMatch.js inserts both innings, in the same
-  // order Play-Cricket lists them (chronological), inside one transaction,
-  // every sync - so the lower id is always the innings that happened first.
+  // used on both the scorecard and fixtures pages ("Won by 4 wickets", "Lost
+  // by 23 runs", "Tied", ...). States the margin from OUR perspective -
+  // `result` ('W'/'L') already reflects whether Barwell won or lost (see
+  // parseMatchDetail.js's result_applied_to flip), so the verb here just
+  // follows it directly. Getting the margin number right (not the verb)
+  // needs knowing which side batted first, which `innings.innings_number`
+  // can't tell you - Play-Cricket sends `1` for every single-innings-per-side
+  // match on both sides. The `innings` table's own autoincrementing `id` is
+  // the reliable signal instead: scripts/insertMatch.js inserts both
+  // innings, in the same order Play-Cricket lists them (chronological),
+  // inside one transaction, every sync - so the lower id is always the
+  // innings that happened first.
   const RESULT_LABELS = { W: 'Won', L: 'Lost', T: 'Tied', D: 'Drawn', A: 'Abandoned', C: 'Cancelled', CON: 'Conceded' };
 
   function describeResult(result, usInnings, oppInnings) {
@@ -52,14 +53,15 @@
       const usBattedFirst = usInnings.id < oppInnings.id;
       const first = usBattedFirst ? usInnings : oppInnings;
       const second = usBattedFirst ? oppInnings : usInnings;
+      const verb = result === 'W' ? 'Won' : 'Lost';
 
       if (second.runs > first.runs) {
         const wkts = 10 - second.wickets;
-        return `Won by ${wkts} ${wkts === 1 ? 'wicket' : 'wickets'}`;
+        return `${verb} by ${wkts} ${wkts === 1 ? 'wicket' : 'wickets'}`;
       }
       if (second.runs < first.runs) {
         const runs = first.runs - second.runs;
-        return `Won by ${runs} ${runs === 1 ? 'run' : 'runs'}`;
+        return `${verb} by ${runs} ${runs === 1 ? 'run' : 'runs'}`;
       }
       // second.runs === first.runs alongside a W/L result shouldn't happen
       // (that's what result 'T' is for) - fall through to the plain label

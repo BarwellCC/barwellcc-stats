@@ -16,9 +16,10 @@ const raw = sample.match_details[0];
 // Same fixture as run-test.js: "us" (Chingford CC) bat first and score
 // 100/2, the opposition chase it down at 101/1 (9 wickets in hand) - a win
 // for the opposition, which is why parseMatchDetail flips the raw 'W'
-// (applied to the away team) into 'L' for us. Real cricket phrasing states
-// the winning margin from the winner's side regardless of who "us" is, so
-// this should read "Won by 9 wickets" even though the result is a loss for us.
+// (applied to the away team) into 'L' for us. The margin is stated from OUR
+// perspective (the `result` verb), so a loss like this reads "Lost by 9
+// wickets" - the opposition's wickets in hand, but "Lost" because it's a
+// loss for us.
 const parsed = parseMatchDetail(raw, { ourClubId: '1835', season: 2017 });
 assert.strictEqual(parsed.match.result, 'L');
 
@@ -35,10 +36,10 @@ const oppInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_u
 assert.ok(usInnings.id < oppInnings.id, 'us batted first in this fixture, so should have the lower innings id');
 assert.strictEqual(
   describeResult('L', usInnings, oppInnings),
-  'Won by 9 wickets',
-  'margin is stated from the winning side, not "us" - a loss where the chasing team had 9 wickets in hand'
+  'Lost by 9 wickets',
+  'the verb follows the result (a loss for us), the margin is still the chasing team\'s wickets in hand'
 );
-console.log('describeResult (chase win): PASS');
+console.log('describeResult (chase loss): PASS');
 
 // Flip the roles: if "we" are the team that batted first and successfully
 // defended (opposition all out short), the margin is runs, not wickets.
@@ -55,7 +56,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   describeResult('L', { id: 1, runs: 150, wickets: 4 }, { id: 2, runs: 149, wickets: 10 }),
-  'Won by 1 run'
+  'Lost by 1 run'
 );
 console.log('describeResult (singular units): PASS');
 
