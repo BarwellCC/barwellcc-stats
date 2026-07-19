@@ -21,13 +21,32 @@ function writeJson(relPath, data) {
   fs.writeFileSync(fullPath, JSON.stringify(data));
 }
 
+// A stable identifier for a match that survives nightly rebuilds from an
+// empty database. matches.id (the autoincrement PK) depends on insertion
+// order, which Play-Cricket's API doesn't guarantee stable for same-date
+// fixtures (very common - several teams often play the same Saturday) - a
+// scorecard URL built from it could silently start pointing at a different
+// match after the next nightly sync. play_cricket_match_id is permanent,
+// assigned once by Play-Cricket itself, so use that whenever we have it.
+// Historic (Hitssports) matches, once imported, won't have one - fall back
+// to a slug built from fields that are fixed for a given real fixture (a
+// team can't play the same opponent twice on the same day), so it stays
+// stable as long as the imported source data itself doesn't change.
+function slugify(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+function publicMatchId(match) {
+  if (match.play_cricket_match_id) return `pc${match.play_cricket_match_id}`;
+  return `h-${match.match_date}-${slugify(match.team_name)}-${slugify(match.opposition_name)}`;
+}
+
 function buildMatches(db) {
   // LEFT JOIN innings (rather than a per-match lookup) so upcoming fixtures
   // with no scorecard yet still come back as one row with ui/oi null.
   const rows = db
     .prepare(
-      `SELECT m.id, m.match_date, m.match_time, m.team_name, m.season, m.opposition_name,
-       m.home_or_away, m.competition_type, m.result,
+      `SELECT m.id, m.play_cricket_match_id, m.match_date, m.match_time, m.team_name, m.season,
+       m.opposition_name, m.home_or_away, m.competition_type, m.result,
        ui.id AS us_innings_id, ui.runs AS us_runs, ui.wickets AS us_wickets,
        oi.id AS opp_innings_id, oi.runs AS opp_runs, oi.wickets AS opp_wickets
        FROM matches m
@@ -41,7 +60,7 @@ function buildMatches(db) {
     const usInnings = r.us_innings_id ? { id: r.us_innings_id, runs: r.us_runs, wickets: r.us_wickets } : null;
     const oppInnings = r.opp_innings_id ? { id: r.opp_innings_id, runs: r.opp_runs, wickets: r.opp_wickets } : null;
     return {
-      id: r.id,
+      id: publicMatchId(r),
       date: r.match_date,
       time: r.match_time,
       team: r.team_name,
@@ -60,7 +79,7 @@ function buildMatches(db) {
 function buildScorecards(db) {
   const playedMatches = db
     .prepare(
-      `SELECT id, match_date, match_time, team_name, opposition_name, venue,
+      `SELECT id, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
        home_or_away, competition_name, competition_type, result, our_total, opposition_total
        FROM matches WHERE result IS NOT NULL`
     )
@@ -71,12 +90,15 @@ function buildScorecards(db) {
     const usInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 1').get(match.id);
     const oppInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 0').get(match.id);
     match.resultSummary = describeResult(match.result, usInnings, oppInnings);
+    const publicId = publicMatchId(match);
+    match.id = publicId;
+    delete match.play_cricket_match_id;
 
     // Abandoned/conceded matches can carry a result code with no parsed
     // scorecard - write empty tables rather than skipping the file, so the
     // scorecard page still has something to show instead of a 404.
     if (!usInnings || !oppInnings) {
-      writeJson(`scorecards/${match.id}.json`, {
+      writeJson(`scorecards/${publicId}.json`, {
         match, usInnings: usInnings || null, oppInnings: oppInnings || null, batting: [], bowling: [],
       });
       count += 1;
@@ -106,7 +128,7 @@ function buildScorecards(db) {
       )
       .all(oppInnings.id);
 
-    writeJson(`scorecards/${match.id}.json`, { match, usInnings, oppInnings, batting, bowling });
+    writeJson(`scorecards/${publicId}.json`, { match, usInnings, oppInnings, batting, bowling });
     count += 1;
   }
   return count;
@@ -121,8 +143,8 @@ function buildBattingRows(db) {
   const rows = db
     .prepare(
       `SELECT bp.player_id, p.name, bp.runs, bp.how_out, bp.fours, bp.sixes,
-       m.id AS match_id, m.match_date, m.team_name, m.season, m.competition_type,
-       m.opposition_name, m.home_or_away
+       m.id AS match_id, m.play_cricket_match_id, m.match_date, m.team_name, m.season,
+       m.competition_type, m.opposition_name, m.home_or_away
        FROM batting_performances bp
        JOIN innings i ON i.id = bp.innings_id
        JOIN matches m ON m.id = i.match_id
@@ -130,6 +152,13 @@ function buildBattingRows(db) {
        WHERE i.is_us = 1 AND p.name != 'Unsure'`
     )
     .all();
+  // match_id (the autoincrement PK) stays internal, used only to count
+  // distinct matches per player - match_public_id is the one exposed in
+  // scorecard links, see publicMatchId() above for why they need to differ.
+  for (const r of rows) {
+    r.match_public_id = publicMatchId(r);
+    delete r.play_cricket_match_id;
+  }
   writeJson('batting.json', rows);
   return rows.length;
 }
@@ -141,8 +170,8 @@ function buildBowlingRows(db) {
   const rows = db
     .prepare(
       `SELECT bw.player_id, p.name, bw.overs, bw.maidens, bw.runs_conceded, bw.wickets,
-       m.id AS match_id, m.match_date, m.team_name, m.season, m.competition_type,
-       m.opposition_name, m.home_or_away
+       m.id AS match_id, m.play_cricket_match_id, m.match_date, m.team_name, m.season,
+       m.competition_type, m.opposition_name, m.home_or_away
        FROM bowling_performances bw
        JOIN innings i ON i.id = bw.innings_id
        JOIN matches m ON m.id = i.match_id
@@ -150,6 +179,10 @@ function buildBowlingRows(db) {
        WHERE i.is_us = 0 AND p.name != 'Unsure'`
     )
     .all();
+  for (const r of rows) {
+    r.match_public_id = publicMatchId(r);
+    delete r.play_cricket_match_id;
+  }
   writeJson('bowling.json', rows);
   return rows.length;
 }

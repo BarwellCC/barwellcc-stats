@@ -135,6 +135,14 @@ them and I'll help track them down.
 4. **Historic import** — once matching is solid on this season (where we can
    cross-check against real Play-Cricket data), the same approach applies to
    older Hitssports-only seasons. Send those exports whenever you're ready.
+   One thing the importer will need to do when it's built: give each
+   historic match a `play_cricket_match_id` of `NULL` (they're not
+   Play-Cricket matches) - `publicMatchId()` in `scripts/buildStatic.js`
+   already handles that case with a fallback slug
+   (`h-{date}-{team}-{opponent}`), so scorecard links stay stable for
+   historic matches too, but it depends on `match_date`/`team_name`/
+   `opposition_name` actually being populated and not changing on
+   re-import.
 5. ~~**Stats queries**~~ — done: `CricketCalc.statsBatting`/`statsBowling`
    (`site/js/cricket-calc.js`) return individual innings (not aggregated
    season figures like Averages) so you can search/sort/filter by player,
@@ -241,6 +249,19 @@ files. A few non-obvious things worth knowing if you touch
   `site/js/cricket-calc.js`, which needs batting order to tell "won by
   wickets" (second side batted, beat the target) from "won by runs" (first
   side defended a total) apart.
+- `matches.id` (the autoincrement PK) is **not** a stable identifier across
+  rebuilds, and scorecard URLs used to be built from it directly - the
+  nightly GitHub Action starts from an empty `data/barwellcc.db` every run
+  (see "Hosting on GitHub Pages" below for why) and re-syncs the whole
+  season from Play-Cricket fresh, so `id` just reflects whatever order that
+  night's API response happened to insert matches in. Same-date fixtures
+  (multiple teams often play the same Saturday) aren't guaranteed a stable
+  order, so a bookmarked `scorecard.html?id=7` could silently point at a
+  different match after the next sync. Fixed by using
+  `publicMatchId()` (`scripts/buildStatic.js`) for every scorecard link and
+  filename instead - `play_cricket_match_id` (permanent, assigned once by
+  Play-Cricket) when we have one, a deterministic slug otherwise. See step 4
+  above for what the historic importer needs to do to keep this working.
 
 Run `npm run derive-fielding` any time `fielding_performances` needs
 rebuilding from scratch (it also runs automatically at the end of

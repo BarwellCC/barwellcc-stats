@@ -37,14 +37,21 @@ function readJson(relPath) {
   return JSON.parse(fs.readFileSync(path.join(outDir, relPath), 'utf8'));
 }
 
+// The sample fixture's Play-Cricket match id is 123456 (see run-test.js) -
+// matches[0].id should be built from that (`pc123456`), not the internal
+// autoincrement matchId, since the internal one isn't stable across a
+// from-scratch rebuild (see publicMatchId() in scripts/buildStatic.js).
+const publicId = 'pc123456';
 const matches = readJson('matches.json');
 assert.strictEqual(matches.length, 1);
-assert.strictEqual(matches[0].id, matchId);
+assert.strictEqual(matches[0].id, publicId, 'matches.json should key by the stable Play-Cricket id, not the internal one');
+assert.notStrictEqual(matches[0].id, matchId, 'sanity check that these two ids really are different in this fixture');
 assert.strictEqual(matches[0].result, 'L');
 assert.strictEqual(matches[0].resultSummary, 'Lost by 9 wickets', 'verb follows the result (a loss for us)');
 console.log('matches.json: PASS');
 
-const scorecard = readJson(`scorecards/${matchId}.json`);
+const scorecard = readJson(`scorecards/${publicId}.json`);
+assert.strictEqual(scorecard.match.id, publicId);
 assert.strictEqual(scorecard.match.resultSummary, 'Lost by 9 wickets');
 assert.strictEqual(scorecard.batting.length, 3, '3 batters in our (Chingford CC) innings');
 assert.strictEqual(scorecard.bowling.length, 1, 'only 1 bowler recorded in our bowling figures (the innings we bowled)');
@@ -53,6 +60,8 @@ console.log('scorecards/{id}.json: PASS');
 const battingRows = readJson('batting.json');
 assert.strictEqual(battingRows.length, 3, 'only our batting rows (is_us=1), not the opposition\'s');
 assert.ok(battingRows.every((r) => r.team_name === '3rd XI'));
+assert.ok(battingRows.every((r) => r.match_public_id === publicId), 'flat rows carry the stable id too, for Stats\' scorecard links');
+assert.ok(battingRows.every((r) => !('play_cricket_match_id' in r)), 'the raw field should be consumed, not left lying around');
 console.log('batting.json: PASS');
 
 const bowlingRows = readJson('bowling.json');

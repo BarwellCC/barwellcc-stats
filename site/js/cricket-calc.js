@@ -179,6 +179,9 @@
   }
 
   // ---- Stats: per-innings search, sorted highest-first ----
+  // matchId here is match_public_id (Play-Cricket's own permanent id, not
+  // the internal autoincrement one) - see publicMatchId() in
+  // scripts/buildStatic.js for why the difference matters for scorecard links.
   function statsBatting(battingRows, { teams, seasons, comps, player, min, max } = {}) {
     return battingRows
       .filter((r) => r.how_out !== 'did not bat')
@@ -192,7 +195,7 @@
         fixture: r.competition_type,
         opp: r.opposition_name,
         venue: r.home_or_away,
-        matchId: r.match_id,
+        matchId: r.match_public_id,
       }))
       .sort((a, b) => b.score - a.score);
   }
@@ -210,7 +213,7 @@
         fixture: r.competition_type,
         opp: r.opposition_name,
         venue: r.home_or_away,
-        matchId: r.match_id,
+        matchId: r.match_public_id,
       }))
       .sort((a, b) => b.score - a.score);
   }
