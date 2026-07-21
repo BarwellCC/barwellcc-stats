@@ -5,7 +5,8 @@ const path = require('path');
 const assert = require('assert');
 
 const { parseFixtureListPage } = require('../scripts/parseFixtureListPage');
-const { parseScorecardPage, parseTimeText, normalizeHowOut } = require('../scripts/parseScorecardPage');
+const { parseScorecardPage, parseResultCode, parseTimeText, normalizeHowOut } = require('../scripts/parseScorecardPage');
+const { buildMatchRecord } = require('../scripts/scrapeAllHistoric');
 
 assert.strictEqual(parseTimeText('13:00'), '13:00');
 assert.strictEqual(parseTimeText('1pm'), '13:00');
@@ -76,6 +77,45 @@ const paulMarvin = usInnings2009.batting.find((b) => b.player_name === 'Paul  Ma
 assert.ok(paulMarvin, 'should find Paul Marvin (double-spaced name in the source, like the xlsx export had)');
 assert.strictEqual(paulMarvin.runs, 65);
 console.log('parseScorecardPage (2009 sample): PASS');
+
+// --- buildMatchRecord: fixture-list result class must win over the
+// scorecard's keyword-matching fallback, even when the scorecard's h2.result
+// text contains "conceded" alongside a genuine won/lost fixture-list class
+// (e.g. "Barwell Cricket Club Won Newbold Verdon Conceded" mis-scans as CON
+// under parseResultCode's keyword order, but the fixture list unambiguously
+// says class="won") ---
+assert.strictEqual(
+  parseResultCode('Barwell Cricket Club Won Newbold Verdon Conceded'),
+  'CON',
+  'documents the known keyword-order quirk in parseResultCode - "conceded" is checked before "won"/"lost"'
+);
+
+const concededFixtureRow = {
+  dateStr: 'Sun 11 Jun 2023',
+  opposition: 'Newbold Verdon CC',
+  homeOrAway: 'H',
+  startTimeText: '13:00',
+  type: 'League',
+  resultCode: 'W',
+};
+const concededScorecard = {
+  timeStr: '13:00',
+  resultText: 'Barwell Cricket Club Won Newbold Verdon Conceded',
+  resultCode: parseResultCode('Barwell Cricket Club Won Newbold Verdon Conceded'),
+  innings: [],
+};
+const concededRecord = buildMatchRecord({
+  teamName: '1st XI',
+  season: 2023,
+  fixtureRow: concededFixtureRow,
+  scorecard: concededScorecard,
+});
+assert.strictEqual(
+  concededRecord.match.result,
+  'W',
+  'buildMatchRecord must prefer the fixture-list result class (W) over the scorecard fallback (CON)'
+);
+console.log('buildMatchRecord result precedence: PASS');
 
 // --- insertScrapedMatch, end to end against a real SQLite DB ---
 const { insertScrapedMatch, resolvePlayerId } = require('../scripts/insertScrapedMatch');
