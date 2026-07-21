@@ -183,6 +183,8 @@
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
 
   td.name{ font-weight: 500; }
+  a.player-link{ color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
+  a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline, var(--accent)); }
   .not-out{ color: var(--accent); font-weight: 600; }
 
   tr.no-records td{
@@ -307,7 +309,7 @@ function renderTable(data, cols, headEl, bodyEl){
     bodyEl.innerHTML = rows.length ? rows.map(r => {
       const cells = cols.map(c => {
         let val = r[c.key];
-        if (c.key === "name") return `<td class="name">${val}</td>`;
+        if (c.key === "name") return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a></td>`;
         if (c.key === "high" && typeof val === "string" && val.includes("*")) {
           return `<td>${val.replace("*", "")}<span class="not-out">*</span></td>`;
         }

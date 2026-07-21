@@ -211,6 +211,8 @@
     border-bottom: 1px solid var(--accent-underline);
   }
   a.scorecard-link:hover{ border-color: var(--accent); }
+  a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
+  a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline); }
 
   /* Sticky first column - matters most on mobile where the table scrolls horizontally */
   thead th:first-child{ position: sticky; left:0; z-index:3; background: var(--head-bg); }
@@ -379,6 +381,9 @@ function currentCols(){ return activeTab === 'batting' ? battingCols : bowlingCo
 
 function cellHtml(r, c){
   const val = r[c.key];
+  if (c.key === "player") {
+    return `<td><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a></td>`;
+  }
   if (c.key === "score" && activeTab === 'batting') {
     return `<td class="score">${val}${r.notOut ? '<span class="not-out">*</span>' : ''}</td>`;
   }

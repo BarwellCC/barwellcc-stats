@@ -218,10 +218,156 @@
       .sort((a, b) => b.score - a.score);
   }
 
+  // ---- Player profile: one player's career-best innings/spells and season-by-season splits ----
+  // matchId here is match_public_id, same reasoning as statsBatting/statsBowling above.
+  function topBattingInnings(battingRows, player, { teams, n } = {}) {
+    return battingRows
+      .filter((r) => r.name === player && r.how_out !== 'did not bat' && (!teams || teams.includes(r.team_name)))
+      .map((r) => ({
+        score: r.runs,
+        notOut: r.how_out === 'not out' || r.how_out === 'retired not out',
+        date: r.match_date,
+        team: r.team_name,
+        opp: r.opposition_name,
+        venue: r.home_or_away,
+        matchId: r.match_public_id,
+      }))
+      // Ties broken in favour of the not-out innings (a genuine higher-water
+      // mark - the batter wasn't dismissed for that score), same convention
+      // buildBatting uses for a player's own "High" column.
+      .sort((a, b) => b.score - a.score || (b.notOut ? 1 : 0) - (a.notOut ? 1 : 0))
+      .slice(0, n || 3);
+  }
+
+  function topBowlingInnings(bowlingRows, player, { teams, n } = {}) {
+    return bowlingRows
+      .filter((r) => r.name === player && (!teams || teams.includes(r.team_name)))
+      .map((r) => ({
+        wickets: r.wickets,
+        runsConceded: r.runs_conceded,
+        figures: `${r.wickets}-${r.runs_conceded}`,
+        overs: r.overs,
+        date: r.match_date,
+        team: r.team_name,
+        opp: r.opposition_name,
+        venue: r.home_or_away,
+        matchId: r.match_public_id,
+      }))
+      // Best bowling ranks by wickets first, then fewer runs conceded -
+      // matches the "Best" column convention on the Averages page (buildBowling).
+      .sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded)
+      .slice(0, n || 3);
+  }
+
+  function buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams } = {}) {
+    const byName = battingRows.filter((r) => r.name === player);
+    const playerId = byName.length ? byName[0].player_id : null;
+    const filtered = byName.filter((r) => !teams || teams.includes(r.team_name));
+    const fieldingFiltered = fieldingRows.filter((r) => r.player_id === playerId && (!teams || teams.includes(r.team_name)));
+
+    const bySeason = new Map();
+    function entry(season) {
+      let e = bySeason.get(season);
+      if (!e) {
+        e = { season, matches: new Set(), i: 0, no: 0, runs: 0, high: 0, highNotOut: false,
+          fours: 0, sixes: 0, hundreds: 0, fifties: 0, ct: 0, st: 0 };
+        bySeason.set(season, e);
+      }
+      return e;
+    }
+    for (const r of filtered) {
+      const e = entry(r.season);
+      e.matches.add(r.match_id);
+      if (r.how_out === 'did not bat') continue;
+
+      e.i += 1;
+      const notOut = r.how_out === 'not out' || r.how_out === 'retired not out';
+      if (notOut) e.no += 1;
+      e.runs += r.runs;
+      e.fours += r.fours || 0;
+      e.sixes += r.sixes || 0;
+      if (r.runs >= 100) e.hundreds += 1;
+      else if (r.runs >= 50) e.fifties += 1;
+
+      if (r.runs > e.high || (r.runs === e.high && notOut && !e.highNotOut)) {
+        e.high = r.runs;
+        e.highNotOut = notOut;
+      }
+    }
+    for (const r of fieldingFiltered) {
+      const e = entry(r.season);
+      e.ct += r.catches || 0;
+      e.st += r.stumpings || 0;
+    }
+
+    return [...bySeason.values()]
+      .map((e) => {
+        const dismissals = e.i - e.no;
+        return {
+          season: e.season,
+          m: e.matches.size,
+          i: e.i,
+          no: e.no,
+          runs: e.runs,
+          high: e.highNotOut ? `${e.high}*` : `${e.high}`,
+          avg: dismissals > 0 ? Number((e.runs / dismissals).toFixed(2)) : null,
+          fours: e.fours,
+          sixes: e.sixes,
+          hundreds: e.hundreds,
+          fifties: e.fifties,
+          ct: e.ct,
+          st: e.st,
+        };
+      })
+      .sort((a, b) => b.season - a.season);
+  }
+
+  function buildPlayerBowlingBySeason(bowlingRows, player, { teams } = {}) {
+    const byName = bowlingRows.filter((r) => r.name === player);
+    const filtered = byName.filter((r) => !teams || teams.includes(r.team_name));
+
+    const bySeason = new Map();
+    for (const r of filtered) {
+      let e = bySeason.get(r.season);
+      if (!e) {
+        e = { season: r.season, matches: new Set(), balls: 0, mdns: 0, runs: 0, wkts: 0,
+          bestWkts: 0, bestRuns: 0, fivew: 0 };
+        bySeason.set(r.season, e);
+      }
+      e.matches.add(r.match_id);
+      e.balls += oversToBalls(r.overs);
+      e.mdns += r.maidens || 0;
+      e.runs += r.runs_conceded || 0;
+      e.wkts += r.wickets || 0;
+      if (r.wickets >= 5) e.fivew += 1;
+      if (r.wickets > e.bestWkts || (r.wickets === e.bestWkts && r.runs_conceded < e.bestRuns)) {
+        e.bestWkts = r.wickets;
+        e.bestRuns = r.runs_conceded;
+      }
+    }
+
+    return [...bySeason.values()]
+      .map((e) => ({
+        season: e.season,
+        m: e.matches.size,
+        overs: ballsToOvers(e.balls),
+        mdns: e.mdns,
+        runs: e.runs,
+        wkts: e.wkts,
+        best: `${e.bestWkts}-${e.bestRuns}`,
+        fivew: e.fivew,
+        avg: e.wkts > 0 ? Number((e.runs / e.wkts).toFixed(2)) : null,
+        econ: e.balls > 0 ? Number((e.runs / (e.balls / 6)).toFixed(2)) : null,
+      }))
+      .sort((a, b) => b.season - a.season);
+  }
+
   return {
     oversToBalls, ballsToOvers,
     describeResult, RESULT_LABELS,
     buildBatting, buildBowling,
     statsBatting, statsBowling,
+    topBattingInnings, topBowlingInnings,
+    buildPlayerBattingBySeason, buildPlayerBowlingBySeason,
   };
 });
