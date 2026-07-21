@@ -22,7 +22,9 @@ function deriveFielding(db) {
       `SELECT bp.how_out, bp.fielder_name, i.match_id
        FROM batting_performances bp
        JOIN innings i ON i.id = bp.innings_id
+       JOIN matches m ON m.id = i.match_id
        WHERE i.is_us = 0
+         AND m.source = 'playcricket'
          AND bp.fielder_name IS NOT NULL
          AND bp.how_out IN ('ct', 'st', 'run out')`
     )
@@ -51,7 +53,14 @@ function deriveFielding(db) {
   }
 
   const rebuild = db.transaction(() => {
-    db.exec('DELETE FROM fielding_performances');
+    // Scoped to playcricket-sourced matches only - historic matches' fielding
+    // figures come directly from the Hitssports export (see
+    // scripts/insertScrapedMatch.js), not from this derivation, and an
+    // unscoped DELETE here would wipe them out again on every nightly sync.
+    db.exec(
+      `DELETE FROM fielding_performances
+       WHERE match_id IN (SELECT id FROM matches WHERE source = 'playcricket')`
+    );
     const insert = db.prepare(
       `INSERT INTO fielding_performances (match_id, player_id, catches, stumpings, run_outs)
        VALUES (@match_id, @player_id, @catches, @stumpings, @run_outs)`

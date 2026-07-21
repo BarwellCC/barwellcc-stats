@@ -37,16 +37,23 @@ jobs:
 
       # Re-syncs the current season's results/fixtures from Play-Cricket into
       # a fresh data/barwellcc.db (gitignored - this job doesn't commit it,
-      # it's rebuilt from scratch every run). Historic seasons, once
-      # imported, are expected to be checked into the repo directly instead,
-      # since they can't be re-fetched from Play-Cricket's API - see
-      # README.md step 4.
+      # it's rebuilt from scratch every run).
       - name: Sync from Play-Cricket
         run: npm run sync
         env:
           PLAY_CRICKET_API_TOKEN: ${{ secrets.PLAY_CRICKET_API_TOKEN }}
           PLAY_CRICKET_SITE_ID: ${{ secrets.PLAY_CRICKET_SITE_ID }}
           PLAY_CRICKET_CLUB_ID: ${{ secrets.PLAY_CRICKET_CLUB_ID }}
+
+      # Historic (pre-Play-Cricket) seasons are scraped from the club's own
+      # live site (see README.md's "Importing historic seasons via the live
+      # site" section) and checked in as historic-data/scraped-matches.json -
+      # this just loads that dump into the fresh DB (fast, no network calls).
+      # Re-scraping the live site on every deploy would be excessive - that
+      # only happens manually (npm run scrape-historic + npm run dump-historic)
+      # when backfilling a new season or refreshing an existing one.
+      - name: Load historic seasons
+        run: npm run load-historic
 
       - name: Build static JSON for the site
         run: npm run build-static

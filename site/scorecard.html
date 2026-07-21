@@ -299,18 +299,26 @@ function renderHeader(match, usInnings, oppInnings){
   document.getElementById('usScoreTeam').textContent = ourName;
   document.getElementById('oppScoreTeam').textContent = match.opposition_name;
 
+  // Historic matches (see scripts/parseScorecardPage.js) have innings rows
+  // but no team total (runs/wickets/overs are null - the source export never
+  // had them) and no result at all - render nothing for those pieces rather
+  // than a literal "null/null" or a broken result pill.
   if (usInnings) {
-    document.getElementById('usScoreFigure').textContent = `${usInnings.runs}/${usInnings.wickets}`;
-    document.getElementById('usScoreOvers').textContent = `${usInnings.overs} overs`;
+    document.getElementById('usScoreFigure').textContent = usInnings.runs != null ? `${usInnings.runs}/${usInnings.wickets}` : '';
+    document.getElementById('usScoreOvers').textContent = usInnings.overs != null ? `${usInnings.overs} overs` : '';
   }
   if (oppInnings) {
-    document.getElementById('oppScoreFigure').textContent = `${oppInnings.runs}/${oppInnings.wickets}`;
-    document.getElementById('oppScoreOvers').textContent = `${oppInnings.overs} overs`;
+    document.getElementById('oppScoreFigure').textContent = oppInnings.runs != null ? `${oppInnings.runs}/${oppInnings.wickets}` : '';
+    document.getElementById('oppScoreOvers').textContent = oppInnings.overs != null ? `${oppInnings.overs} overs` : '';
   }
 
-  const summary = match.resultSummary || resultLabel[match.result] || match.result;
-  document.getElementById('matchResult').innerHTML =
-    `<span class="result-pill ${match.result}">${match.result}</span> ${summary}`;
+  if (match.result) {
+    const summary = match.resultSummary || resultLabel[match.result] || match.result;
+    document.getElementById('matchResult').innerHTML =
+      `<span class="result-pill ${match.result}">${match.result}</span> ${summary}`;
+  } else {
+    document.getElementById('matchResult').innerHTML = '';
+  }
 }
 
 function renderBatting(batting, extras, teamTotal){
@@ -337,8 +345,15 @@ function renderBatting(batting, extras, teamTotal){
     extras.extra_wides ? `${extras.extra_wides}w` : null,
     extras.extra_no_balls ? `${extras.extra_no_balls}nb` : null,
   ].filter(Boolean).join(" ");
-  const extrasRow = `<tr class="extras-row"><td class="name">Extras</td><td class="how-out extras-detail">${extrasParts}</td><td colspan="4"></td><td>${extras.total_extras}</td></tr>`;
-  const totalRow = `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs} overs</td><td colspan="4"></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`;
+  // Historic innings never have extras or a team total recorded (see
+  // scripts/parseScorecardPage.js) - skip these rows entirely rather than
+  // showing an empty "Extras" line or a literal "null/null" total.
+  const extrasRow = extras.total_extras != null
+    ? `<tr class="extras-row"><td class="name">Extras</td><td class="how-out extras-detail">${extrasParts}</td><td colspan="4"></td><td>${extras.total_extras}</td></tr>`
+    : '';
+  const totalRow = teamTotal.runs != null
+    ? `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs} overs</td><td colspan="4"></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`
+    : '';
   document.getElementById("battingBody").innerHTML = rows + extrasRow + totalRow;
 }
 

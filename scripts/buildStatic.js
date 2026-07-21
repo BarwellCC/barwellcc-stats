@@ -45,7 +45,7 @@ function buildMatches(db) {
   // with no scorecard yet still come back as one row with ui/oi null.
   const rows = db
     .prepare(
-      `SELECT m.id, m.play_cricket_match_id, m.match_date, m.match_time, m.team_name, m.season,
+      `SELECT m.id, m.source, m.play_cricket_match_id, m.match_date, m.match_time, m.team_name, m.season,
        m.opposition_name, m.home_or_away, m.competition_type, m.result,
        ui.id AS us_innings_id, ui.runs AS us_runs, ui.wickets AS us_wickets,
        oi.id AS opp_innings_id, oi.runs AS opp_runs, oi.wickets AS opp_wickets
@@ -70,6 +70,13 @@ function buildMatches(db) {
       comp: r.competition_type,
       result: r.result,
       resultSummary: describeResult(r.result, usInnings, oppInnings),
+      // Historic matches never carry a result (the Hitssports exports don't
+      // have one - see scripts/parseScorecardPage.js), but they did happen,
+      // unlike a genuinely upcoming Play-Cricket fixture with no result yet -
+      // the frontend needs to tell those two "no result" cases apart rather
+      // than labelling a 2015 match "Upcoming".
+      played: r.source === 'historic' || !!r.result,
+      hasScorecard: !!r.result || !!usInnings || !!oppInnings,
     };
   });
   writeJson('matches.json', matches);
@@ -77,11 +84,17 @@ function buildMatches(db) {
 }
 
 function buildScorecards(db) {
+  // A match counts as "played" (gets a scorecard file) if it has a result
+  // code (Play-Cricket, including abandoned/conceded matches with no parsed
+  // innings) or any innings data at all (historic matches, which never have
+  // a result but do have real batting/bowling figures - see
+  // scripts/parseScorecardPage.js). Excludes genuinely upcoming fixtures.
   const playedMatches = db
     .prepare(
       `SELECT id, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
        home_or_away, competition_name, competition_type, result, our_total, opposition_total
-       FROM matches WHERE result IS NOT NULL`
+       FROM matches
+       WHERE result IS NOT NULL OR id IN (SELECT match_id FROM innings)`
     )
     .all();
 
@@ -205,7 +218,8 @@ function buildPlayers(db) {
       `SELECT DISTINCT p.name FROM players p
        WHERE p.name != 'Unsure' AND (EXISTS (
          SELECT 1 FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
-         WHERE bp.player_id = p.id AND i.is_us = 1 AND bp.how_out != 'did not bat'
+         WHERE bp.player_id = p.id AND i.is_us = 1
+           AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')
        ) OR EXISTS (
          SELECT 1 FROM bowling_performances bw JOIN innings i ON i.id = bw.innings_id
          WHERE bw.player_id = p.id AND i.is_us = 0

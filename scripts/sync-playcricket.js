@@ -5,6 +5,7 @@ const { insertMatch } = require('./insertMatch');
 const { parseMatchDetail } = require('./parseMatchDetail');
 const { parseFixture } = require('./parseFixture');
 const { deriveFielding } = require('./deriveFielding');
+const { SENIOR_TEAMS } = require('./teams');
 
 const API_TOKEN = process.env.PLAY_CRICKET_API_TOKEN;
 const SITE_ID = process.env.PLAY_CRICKET_SITE_ID;
@@ -65,6 +66,16 @@ async function syncSeason(season) {
       skipped += 1;
       continue;
     }
+    // Senior teams only (see scripts/teams.js) - result_summary.json already
+    // gives us the team name without needing the full match_detail fetch, so
+    // junior fixtures get skipped before ever hitting that heavier endpoint.
+    const isHome = String(fixture.home_club_id) === String(CLUB_ID);
+    const isAway = String(fixture.away_club_id) === String(CLUB_ID);
+    const ourTeamName = isHome ? fixture.home_team_name : isAway ? fixture.away_team_name : null;
+    if (!SENIOR_TEAMS.includes(ourTeamName)) {
+      skipped += 1;
+      continue;
+    }
     try {
       const detail = await fetchMatchDetail(fixture.id);
       if (!detail) {
@@ -90,6 +101,7 @@ async function syncSeason(season) {
     if (completedIds.has(String(raw.id))) continue; // already synced above, with a real scorecard
     const parsed = parseFixture(raw, { ourClubId: CLUB_ID, season });
     if (!parsed) continue; // not a real "us vs opposition" fixture (e.g. an inter-squad friendly)
+    if (!SENIOR_TEAMS.includes(parsed.match.team_name)) continue; // senior teams only - see scripts/teams.js
     insertMatch(db, parsed);
     upcoming += 1;
   }

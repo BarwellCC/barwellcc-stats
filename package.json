@@ -7,12 +7,15 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js && node test/buildStatic.test.js",
+    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js && node test/buildStatic.test.js && node test/scrapeHistoric.test.js",
     "sync": "node scripts/sync-playcricket.js",
     "derive-fielding": "node scripts/deriveFielding.js",
     "build-static": "node scripts/buildStatic.js",
     "match-players": "node scripts/matchPlayers.js",
-    "dev": "node scripts/buildStatic.js && node server/index.js",
+    "scrape-historic": "node scripts/scrapeAllHistoric.js",
+    "dump-historic": "node scripts/dumpHistoricScraped.js",
+    "load-historic": "node scripts/loadHistoricScraped.js",
+    "dev": "node scripts/loadHistoricScraped.js && node scripts/buildStatic.js && node server/index.js",
     "start": "node server/index.js"
   },
   "keywords": [],
@@ -20,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "node-fetch": "^2.7.0",

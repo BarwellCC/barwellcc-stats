@@ -38,13 +38,31 @@
   which the pages fetch once and hand to `cricket-calc.js`. Runs
   automatically as part of `npm run dev` and at the end of the nightly
   GitHub Action (see "Hosting" below).
+- **`scripts/scrapeClub.js`/`scripts/parseFixtureListPage.js`/
+  `scripts/parseScorecardPage.js`/`scripts/insertScrapedMatch.js`/
+  `scripts/scrapeAllHistoric.js`** (`npm run scrape-historic`) — scrapes every
+  historic (pre-Play-Cricket) season directly from the club's own live site
+  (barwellcc.co.uk), which turns out to have full scorecards - real results,
+  real team totals with extras, real dismissal types - not just the
+  runs-only figures a Hitssports xlsx export gives. Covers 2009-2025 across
+  all 6 adult teams.
+- **`scripts/dumpHistoricScraped.js`/`scripts/loadHistoricScraped.js`**
+  (`npm run dump-historic`/`npm run load-historic`) — the scraped historic
+  data is checked into the repo as `historic-data/scraped-matches.json`
+  (a portable dump, produced by `dump-historic`) rather than re-scraped on
+  every build; `load-historic` loads that dump into the DB quickly with no
+  network calls, which is what every build (including the nightly GitHub
+  Action) actually runs. See "Importing historic seasons via the live site"
+  below for the full reasoning and how to backfill/refresh a season.
 - **`test/`** — an end-to-end test using the real sample payload from
   Play-Cricket's own API documentation, a player-matching test built from
   Barwell's actual 2026 Hitssports export names, a fielding-derivation test
   covering the is_us join-direction gotcha, a result-margin test covering
-  the `innings_number` gotcha, and a build-static test that runs the whole
-  static-export pipeline end to end. Run all of them with `npm test`. All
-  checks currently pass.
+  the `innings_number` gotcha, a build-static test that runs the whole
+  static-export pipeline end to end, and a scraper test (built from two real
+  saved scorecard pages, one 2026 and one 2009) covering the fixture-list/
+  scorecard HTML parsing, the "did not bat" detection, and re-scrape
+  idempotency. Run all of them with `npm test`. All checks currently pass.
 - **`mockups/averages-refresh.html`, `mockups/stats-refresh.html`,
   `mockups/fixtures-refresh.html`, `mockups/scorecard-refresh.html`
   (+ 3 sibling scorecard mockups)** — visual-refresh designs for the
@@ -90,6 +108,146 @@ patched build directly rather than the npm one - you shouldn't need to do
 anything, but if `npm install` ever complains about that URL, that's why it's
 there.
 
+## Importing historic seasons via the live site
+
+First attempt at historic import (see git history around 2026-07-20) used
+the same Hitssports xlsx exports as the current season's player-matching
+files - a batting export, a bowling export, a fixture list - piloted against
+2025. That data turned out to be thin: no match result (W/L/D), no team
+total (runs/wickets/overs/extras), no dismissal method for batting, just
+runs scored and a not-out flag. Before building around that gap, asked the
+user directly whether a richer Hitssports export existed; instead they
+pointed at the club's own live site (`https://barwellcc.co.uk`) and asked
+whether it could be crawled directly instead of relying on exports at all.
+
+**It can, and it's much richer.** `https://barwellcc.co.uk/scorecard/fixtureID_<id>/...`
+has a full scorecard for every match back to at least 2009: a result line
+("Barwell Cricket Club Lost by 1 Wicket (14 pts)"), both teams' totals with
+a full extras breakdown, real dismissal types (Bowled/Caught/Stumped/Lbw/Run
+Out/etc, not just runs+not-out), and catches/stumpings/run-outs recorded
+directly on the batter's own row for that match (same convention the xlsx
+export used, just with everything else besides). The xlsx-based importer
+(`scripts/parseHistoricSeason.js`/`insertHistoricMatch.js`/
+`importHistoric.js`/`importAllHistoric.js`, and the `historic-data/2025/`
+xlsx pilot files) has been deleted - the scrape strictly supersedes it, and
+2025 was re-scraped along with every other season rather than left on the
+older, thinner data source.
+
+**How the site is structured** (an ASP.NET RadGrid control, consistent back
+to at least 2009 - see `scripts/parseScorecardPage.js`'s header comment for
+the full write-up): a team/season fixture list
+(`/fixtures/teamid_<id>/seasonid_<id>/default.aspx`) gives one row per
+fixture with a `data-fixid` attribute (the scorecard's id) and a result
+`<span class="won|lost|tied|drawn|abandoned">` - reliable enough that the
+result code doesn't need parsing free text. Each scorecard page has one
+`<fieldset>` per innings: a `<legend>` naming the team that batted (its own
+batting table) followed by an `<h3>` naming the *other* team's bowling for
+that innings - already exactly the "bowling_performances belongs to the
+innings, attributed to whoever did NOT bat" shape used everywhere else in
+this project, so no direction-flipping was needed. Individual opposition
+batting/bowling is essentially never recorded (the club only scores its own
+players in detail), which is fine - those tables just come back empty, same
+as the old xlsx source.
+
+**Why a checked-in dump instead of scraping on every build:** unlike
+Play-Cricket (a real API, meant for repeated automated access) or the old
+xlsx importer (instant, no network, safe to re-run nightly), scraping the
+club's own live site is neither instant nor something to repeat needlessly -
+2009-2025 across 6 teams is roughly 2,500 page fetches even with a polite
+350ms delay between requests (see `scripts/scrapeClub.js`), and none of that
+data is going to change. So the scrape is a manual/occasional step, not part
+of the automated build:
+
+```
+npm run scrape-historic                      # scrapes 2009-2025, all 6 adult teams (~20-40 min, be patient)
+npm run scrape-historic -- --from=2020 --to=2020 --team="1st XI"   # narrower re-scrape, e.g. one team/season
+npm run dump-historic                        # exports every source='historic' row to historic-data/scraped-matches.json
+git add historic-data/scraped-matches.json && git commit  # check the refreshed dump in
+```
+
+`npm run load-historic` (`scripts/loadHistoricScraped.js`) then loads that
+JSON dump into the DB - fast, no network - and is what every build actually
+runs (`npm run dev`, and `.github/workflows/deploy.yml` right after
+`npm run sync`), the same way the nightly Action always re-derives the
+current season from Play-Cricket rather than trusting a stale snapshot.
+Re-scraping only needs to happen again if a new season needs backfilling
+(2026 onwards comes from Play-Cricket, not this scraper) or an existing
+historic season's data on the live site changes.
+
+**Player identity** reuses the exact same `player_aliases` mechanism as the
+current season (see "Player matching" above) - a name confirmed once (e.g.
+"Tommy Wright" → "Tom Wright" via `npm run match-players` against the
+current season's xlsx exports) applies automatically to every
+`source='hitssports'` lookup, scraped or not. There's no equivalent
+`match-players` step for scraped names specifically (`scripts/matchPlayers.js`
+only reads xlsx files) - not needed, since anyone not already covered by a
+confirmed alias just becomes a new historic-only player, which is exactly
+the right outcome for someone who never played a Play-Cricket-era match.
+Worth a manual look afterwards (`SELECT name FROM players WHERE
+play_cricket_id IS NULL`) if a name looks like it could be a
+nickname/misspelling of an existing player rather than a genuinely
+different person.
+
+Piloted end-to-end (2009, 1st XI, 22 matches) before running the full
+2009-2025 x 6-team scrape, which completed cleanly: **1,221 matches, 0
+fetch/parse errors.** Checked the real site afterwards across several
+seasons/teams (Fixtures shows real "Won"/"Lost"/"Tied"/"Cancelled" pills and
+margins for historic matches, not just "See scorecard"; Scorecard shows real
+team totals with extras and real dismissal types; Averages/Stats both
+aggregate real historic figures, e.g. 214 real players now show up on Stats'
+player-search dropdown) before treating the whole backfill as done.
+
+A few teams/seasons genuinely have 0 fixtures (e.g. every team in 2010, and
+patchy years for Midweek 2nd XI and Sunday XI in particular) - checked this
+wasn't a scraper bug by confirming it's consistent across multiple teams for
+the same season (a real bug would more likely hit one team, not all of them
+identically), so it looks like a genuine gap in the club's own site data
+rather than something to fix here.
+
+**Senior teams only** - explicit user instruction, applying to the
+Play-Cricket sync too, not just the historic scrape. `scripts/teams.js`
+exports the canonical `SENIOR_TEAMS` list (1st/2nd/3rd XI, Midweek XI,
+Midweek 2nd XI, Sunday XI); `scripts/sync-playcricket.js` now filters on it
+before ever fetching a match's full detail (junior team names are already
+visible on the lightweight `result_summary.json`/`matches.json` fixture
+lists, so junior fixtures get skipped without the extra API call, not just
+filtered out after fetching). The historic scraper was senior-teams-only
+from the start (`scripts/scrapeClub.js`'s `TEAM_IDS` never had a junior team
+in it). Junior-team rows already in the local DB from before this decision
+(Under 11/13/15/17, Girls U11 Dynamos - 46 matches) were deleted directly
+(`DELETE FROM matches WHERE team_name NOT IN (...)`, cascading via the
+schema's `ON DELETE CASCADE` foreign keys) rather than left to expire.
+
+Building the *original* xlsx-based importer had surfaced three bugs in the
+existing static-export pipeline, all still relevant now that scraped
+historic data flows through the same insert path:
+
+1. `scripts/deriveFielding.js` did an unscoped
+   `DELETE FROM fielding_performances` before rebuilding the Play-Cricket
+   derived rows - harmless while only Play-Cricket data existed, but it would
+   have silently wiped every historic-imported fielding row on the very next
+   `npm run sync`. Now scoped to `WHERE match_id IN (SELECT id FROM matches
+   WHERE source = 'playcricket')`.
+2. `scripts/buildStatic.js`'s `buildScorecards()` only included matches
+   `WHERE result IS NOT NULL` - since historic matches never have a result,
+   none of them would have gotten a scorecard file at all. Now also includes
+   any match with innings data (`OR id IN (SELECT match_id FROM innings)`).
+3. `scripts/buildStatic.js`'s `buildPlayers()` had the same SQL
+   `!= 'did not bat'` NULL-comparison bug documented elsewhere in this
+   project (SQL's `!=` never matches `NULL`) - historic data's unknown-method
+   dismissals (`how_out = null`) would have silently excluded batting-only
+   historic players from the Stats page's player-search dropdown. Fixed to
+   `(bp.how_out IS NULL OR bp.how_out != 'did not bat')`.
+
+`site/fixtures.html` and `site/scorecard.html` also needed small changes:
+Fixtures used to treat *any* match with no result as "Upcoming" (fine when
+only Play-Cricket data existed - a null result there really did mean
+"hasn't been played yet" - but wrong for a 2015 match that's long since
+happened). `matches.json` now carries `played`/`hasScorecard` flags computed
+in `buildMatches()`, and Fixtures/Scorecard use those instead of
+`!result` to tell "genuinely upcoming" apart from "historic, no result on
+record".
+
 ## What I haven't been able to test yet
 
 This sandbox can only reach a fixed allow-list of domains (npm, GitHub, etc.),
@@ -132,17 +290,13 @@ them and I'll help track them down.
    and Harry Flower (a real player who plays rarely, so probably just hasn't
    appeared in a synced 2026 match yet — re-run matching later in the season
    before assuming it's a spelling issue).
-4. **Historic import** — once matching is solid on this season (where we can
-   cross-check against real Play-Cricket data), the same approach applies to
-   older Hitssports-only seasons. Send those exports whenever you're ready.
-   One thing the importer will need to do when it's built: give each
-   historic match a `play_cricket_match_id` of `NULL` (they're not
-   Play-Cricket matches) - `publicMatchId()` in `scripts/buildStatic.js`
-   already handles that case with a fallback slug
-   (`h-{date}-{team}-{opponent}`), so scorecard links stay stable for
-   historic matches too, but it depends on `match_date`/`team_name`/
-   `opposition_name` actually being populated and not changing on
-   re-import.
+4. ~~**Historic import**~~ — done, and upgraded from the original plan:
+   rather than relying on Hitssports xlsx exports (thin data - no result, no
+   team total, no dismissal method), `scripts/scrapeAllHistoric.js`
+   (`npm run scrape-historic`) scrapes full scorecards directly from the
+   club's own live site, covering every adult team, 2009-2025, in one run.
+   See "Importing historic seasons via the live site" below for the full
+   story and how to backfill/refresh a season.
 5. ~~**Stats queries**~~ — done: `CricketCalc.statsBatting`/`statsBowling`
    (`site/js/cricket-calc.js`) return individual innings (not aggregated
    season figures like Averages) so you can search/sort/filter by player,
@@ -212,8 +366,11 @@ files. A few non-obvious things worth knowing if you touch
 - a handful of `how_out` values are `NULL`, not `'did not bat'` - genuine
   completed innings (real runs, real balls faced) where Play-Cricket just
   never recorded a dismissal method, seen so far only on junior scorecards
-  (e.g. an U11 "Incrediball" match). These need to be *included* as normal
-  innings, not filtered out - a SQL `how_out != 'did not bat'` clause
+  (e.g. an U11 "Incrediball" match - junior teams are no longer synced at
+  all, see "Importing historic seasons via the live site" above, but the fix
+  below is still needed for a different reason: scraped historic dismissals
+  of unknown method use the exact same `NULL` convention). These need to be
+  *included* as normal innings, not filtered out - a SQL `how_out != 'did not bat'` clause
   quietly drops them too, because SQL's `!=` never matches `NULL` (it
   evaluates the whole comparison to `NULL`, which a `WHERE` treats as
   "no"). Found this the hard way when `scripts/buildStatic.js`'s flat
@@ -304,10 +461,12 @@ fixed, see git history around 2026-07-19):
   so the bare Pages URL 404'd - `site/index.html` is a one-line meta-refresh
   redirect to `fixtures.html`.
 
-Historic-season data, once imported (see step 4 above), doesn't come from
-this nightly sync - it can't be re-fetched from Play-Cricket - so it'll need
-checking into the repo directly and merging into `data/barwellcc.db` as a
-build step, which isn't built yet.
+Historic-season data doesn't come from this nightly sync - it's scraped from
+the club's own live site on a manual/occasional basis instead (scraping it
+on every deploy would be excessive - see "Importing historic seasons via the
+live site" above), so the resulting dump is checked into the repo as
+`historic-data/scraped-matches.json` and loaded into the DB on every build
+(`npm run load-historic`, right after `npm run sync` in the workflow).
 
 ## ~~Known gap: upcoming fixtures aren't stored yet~~ — fixed
 
