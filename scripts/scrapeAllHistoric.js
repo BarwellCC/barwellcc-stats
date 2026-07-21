@@ -29,7 +29,7 @@ function stripWeekday(dateStr) {
 function buildMatchRecord({ teamName, season, fixtureRow, scorecard }) {
   const isoDate = ddMonYyyyToIso(stripWeekday(fixtureRow.dateStr));
   const matchTime = (scorecard && scorecard.timeStr) || parseTimeText(fixtureRow.startTimeText);
-  const result = (scorecard && scorecard.resultCode) || fixtureRow.resultCode || null;
+  const result = fixtureRow.resultCode || (scorecard && scorecard.resultCode) || null;
 
   const innings = scorecard ? scorecard.innings : [];
   const ourInnings = innings.find((i) => i.is_us);
