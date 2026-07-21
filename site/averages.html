@@ -85,14 +85,29 @@
   :root[data-theme="dark"] .theme-toggle .icon-sun{ display:block; }
   :root[data-theme="dark"] .theme-toggle .icon-moon{ display:none; }
 
+  /* ---- Batting/Bowling view toggle (same component as the Stats page) ---- */
+  .tabs{ display:flex; gap:6px; margin-top: 18px; margin-bottom: 16px; }
+  .tab{
+    flex:1 1 0; text-align:center;
+    font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
+    cursor: pointer; transition: all .15s ease;
+  }
+  .tab:hover{ border-color: var(--pitch-green); color: var(--pitch-green); }
+  .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
+
+  /* ---- White card housing the filter dropdowns (same as Stats' search-card) ---- */
+  .search-card{
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+  }
+
   /* ---- Controls: stacked full-width on mobile ---- */
   .filter-row{
     display:flex;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    margin-top: 18px;
-    margin-bottom: 18px;
   }
   .filter-group{ display:flex; flex-direction:column; gap:5px; }
   .filter-label{
@@ -127,10 +142,12 @@
   .msel-item input{ accent-color: var(--pitch-green); width: 16px; height: 16px; flex-shrink:0; }
 
   /* ---- Section / table card ---- */
+  .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .section-label{
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 8px 2px;
+    text-transform: uppercase; color: var(--accent); margin: 0;
   }
+  .results-count{ font-size: 12px; color: var(--ink-soft); }
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
     margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
@@ -168,6 +185,11 @@
   td.name{ font-weight: 500; }
   .not-out{ color: var(--accent); font-weight: 600; }
 
+  tr.no-records td{
+    text-align: center; color: var(--ink-soft); font-style: italic;
+    padding: 22px 8px; position: static; background: none;
+  }
+
   /* ============ LARGER SCREENS ============ */
   @media (min-width: 640px){
     .page{ padding: 0 20px 64px; }
@@ -179,9 +201,13 @@
     .filter-group.season-group{ margin-left: auto; }
     .msel-btn{ width:auto; min-width:152px; }
     #teamSelect .msel-btn{ min-width: 200px; }
-    #seasonSelect .msel-btn{ min-width: 110px; }
+    /* Season intentionally left at the shared 152px default, same width as
+       Fixture Type - no ID-specific override here. */
 
-    .section-label{ font-size: 13px; letter-spacing: 0.12em; margin: 0 0 10px 2px; }
+    .tabs{ gap:6px; }
+    .tab{ flex: none; padding: 8px 18px; }
+    .search-card{ padding: 22px 24px; }
+
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 10px; }
     tbody td{ padding: 9px 10px; }
@@ -203,48 +229,49 @@
     </button>
   </nav>
 
-  <div class="filter-row">
-    <div class="filter-group">
-      <span class="filter-label">Team</span>
-      <div class="msel" id="teamSelect">
-        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
-        <div class="msel-panel"></div>
-      </div>
-    </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="batting">Batting</div>
+    <div class="tab" data-tab="bowling">Bowling</div>
+  </div>
 
-    <div class="filter-group">
-      <span class="filter-label">Fixture Type</span>
-      <div class="msel" id="compSelect">
-        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
-        <div class="msel-panel"></div>
+  <div class="search-card">
+    <div class="filter-row">
+      <div class="filter-group">
+        <span class="filter-label">Team</span>
+        <div class="msel" id="teamSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
       </div>
-    </div>
 
-    <div class="filter-group season-group">
-      <span class="filter-label">Season</span>
-      <div class="msel" id="seasonSelect">
-        <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
-        <div class="msel-panel"></div>
+      <div class="filter-group">
+        <span class="filter-label">Fixture Type</span>
+        <div class="msel" id="compSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
+      </div>
+
+      <div class="filter-group season-group">
+        <span class="filter-label">Season</span>
+        <div class="msel" id="seasonSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="section-label">Batting</div>
-  <div class="card">
-    <div class="table-scroll" id="battingScroll">
-      <table id="battingTable">
-        <thead><tr id="battingHead"></tr></thead>
-        <tbody id="battingBody"></tbody>
-      </table>
-    </div>
+  <div class="results-label">
+    <p class="section-label">Results</p>
+    <span class="results-count" id="resultsCount"></span>
   </div>
 
-  <div class="section-label">Bowling</div>
   <div class="card">
-    <div class="table-scroll" id="bowlingScroll">
-      <table id="bowlingTable">
-        <thead><tr id="bowlingHead"></tr></thead>
-        <tbody id="bowlingBody"></tbody>
+    <div class="table-scroll" id="resultsScroll">
+      <table id="resultsTable">
+        <thead><tr id="resultsHead"></tr></thead>
+        <tbody id="resultsBody"></tbody>
       </table>
     </div>
   </div>
@@ -255,6 +282,7 @@
 <script>
 let batting = [];
 let bowling = [];
+let activeTab = 'batting';
 
 const battingCols = [
   {key:"name", label:"Player"}, {key:"m", label:"M"}, {key:"i", label:"I"}, {key:"no", label:"NO"},
@@ -269,10 +297,14 @@ const bowlingCols = [
 ];
 
 function renderTable(data, cols, headEl, bodyEl){
-  headEl.innerHTML = cols.map((c,i) => `<th data-i="${i}">${c.label}<span class="arrow">▲</span></th>`).join("");
+  // Defaults to sorted by M (matches), descending - data arrives pre-sorted
+  // this way from loadAverages(), so the header needs to say so too rather
+  // than showing every arrow dim as if nothing were sorted yet.
+  const defaultSortIndex = cols.findIndex(c => c.key === 'm');
+  headEl.innerHTML = cols.map((c,i) => `<th data-i="${i}" class="${i === defaultSortIndex ? 'sorted' : ''}">${c.label}<span class="arrow">${i === defaultSortIndex ? '▼' : '▲'}</span></th>`).join("");
 
   function draw(rows){
-    bodyEl.innerHTML = rows.map(r => {
+    bodyEl.innerHTML = rows.length ? rows.map(r => {
       const cells = cols.map(c => {
         let val = r[c.key];
         if (c.key === "name") return `<td class="name">${val}</td>`;
@@ -283,11 +315,11 @@ function renderTable(data, cols, headEl, bodyEl){
         return `<td>${val}</td>`;
       }).join("");
       return `<tr>${cells}</tr>`;
-    }).join("");
+    }).join("") : `<tr class="no-records"><td colspan="${cols.length}">No records to display.</td></tr>`;
   }
   draw(data);
 
-  let sortState = { i: null, dir: 1 };
+  let sortState = { i: defaultSortIndex, dir: -1 };
   [...headEl.children].forEach((th, i) => {
     th.addEventListener("click", () => {
       const col = cols[i];
@@ -311,12 +343,19 @@ function renderTable(data, cols, headEl, bodyEl){
   });
 }
 
-function renderBattingTable(){
-  renderTable(batting, battingCols, document.getElementById("battingHead"), document.getElementById("battingBody"));
+function renderActiveTable(){
+  const data = activeTab === 'batting' ? batting : bowling;
+  const cols = activeTab === 'batting' ? battingCols : bowlingCols;
+  renderTable(data, cols, document.getElementById("resultsHead"), document.getElementById("resultsBody"));
+  document.getElementById('resultsCount').textContent = `${data.length} player${data.length === 1 ? '' : 's'}`;
 }
-function renderBowlingTable(){
-  renderTable(bowling, bowlingCols, document.getElementById("bowlingHead"), document.getElementById("bowlingBody"));
-}
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  activeTab = t.dataset.tab;
+  renderActiveTable();
+}));
 
 // ---- Reusable single/multi-select dropdown ----
 function initMultiSelect(root, {options, selected, labelForNone, onChange}){
@@ -385,8 +424,7 @@ function loadAverages(){
   if (teams.length === 0 || seasons.length === 0 || comps.length === 0) {
     batting = [];
     bowling = [];
-    renderBattingTable();
-    renderBowlingTable();
+    renderActiveTable();
     return;
   }
 
@@ -396,10 +434,9 @@ function loadAverages(){
     comps: comps.length < compOptions.length ? comps : null,
   };
 
-  batting = CricketCalc.buildBatting(battingRows, fieldingRows, filter).sort((a, b) => b.runs - a.runs);
-  bowling = CricketCalc.buildBowling(bowlingRows, filter).sort((a, b) => b.wkts - a.wkts);
-  renderBattingTable();
-  renderBowlingTable();
+  batting = CricketCalc.buildBatting(battingRows, fieldingRows, filter).sort((a, b) => b.m - a.m);
+  bowling = CricketCalc.buildBowling(bowlingRows, filter).sort((a, b) => b.m - a.m);
+  renderActiveTable();
 }
 
 async function loadTeamsAndSeasons(){
@@ -436,8 +473,7 @@ function initScrollHint(container){
   window.addEventListener('resize', update);
   update();
 }
-initScrollHint(document.getElementById('battingScroll'));
-initScrollHint(document.getElementById('bowlingScroll'));
+initScrollHint(document.getElementById('resultsScroll'));
 
 // ---- Theme toggle (light/dark), persisted across pages via localStorage ----
 function getEffectiveTheme(){
