@@ -269,7 +269,7 @@ const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 function formatDate(iso){
   const [y,m,d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m-1, d));
-  return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]}`;
+  return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]} ${y}`;
 }
 
 function oversToBalls(overs){

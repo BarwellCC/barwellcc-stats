@@ -151,10 +151,12 @@
   }
 
   /* ---- Section / table card ---- */
+  .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .section-label{
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 8px 2px;
+    text-transform: uppercase; color: var(--accent); margin: 0;
   }
+  .results-count{ font-size: 12px; color: var(--ink-soft); }
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
     margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
@@ -246,7 +248,7 @@
     td.opp{ white-space: nowrap; }
     #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4){ display:table-cell; }
 
-    .section-label{ font-size: 13px; letter-spacing: 0.12em; margin: 0 0 10px 2px; }
+    .section-label{ font-size: 13px; letter-spacing: 0.12em; }
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 10px; }
     tbody td{ padding: 9px 10px; }
@@ -290,7 +292,10 @@
     </div>
   </div>
 
-  <div class="section-label">Fixtures &amp; Results</div>
+  <div class="results-label">
+    <p class="section-label">Fixtures &amp; Results</p>
+    <span class="results-count" id="resultsCount"></span>
+  </div>
   <div class="card">
     <div class="table-scroll" id="fixturesScroll">
       <table id="fixturesTable">
@@ -310,7 +315,7 @@ const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 function formatDate(iso){
   const [y,m,d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m-1, d));
-  return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]}`;
+  return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]} ${y}`;
 }
 
 const cols = [
@@ -328,19 +333,22 @@ function renderTable(data, headEl, bodyEl){
     bodyEl.innerHTML = rows.map(r => {
       // Historic matches (r.played) never carry a result - see
       // scripts/parseScorecardPage.js - but they did happen, unlike a
-      // genuinely upcoming Play-Cricket fixture with no result yet.
+      // genuinely upcoming Play-Cricket fixture with no result yet. A
+      // handful of historic fixtures have no result at all (the club's own
+      // site never recorded a definite outcome for them) - those don't get
+      // a clickable pill/link either, same as a genuinely upcoming fixture,
+      // rather than linking to a scorecard with no real result to show.
       const upcoming = !r.played;
+      const hasResult = !upcoming && !!r.result;
       let resultCell;
       if (upcoming) {
         resultCell = `<span class="upcoming-text">Upcoming</span>`;
-      } else if (r.result) {
+      } else if (hasResult) {
         resultCell = `<a class="result-link" href="${r.sc}"><span class="result-pill ${r.result}">${r.result}</span><span class="score-text">${r.resultSummary}</span></a>`;
-      } else if (r.hasScorecard) {
-        resultCell = `<a class="result-link" href="${r.sc}"><span class="score-text">See scorecard</span></a>`;
       } else {
         resultCell = `<span class="upcoming-text">No result recorded</span>`;
       }
-      return `<tr class="${upcoming ? 'upcoming' : 'completed'}" data-sc="${r.sc}">
+      return `<tr class="${hasResult ? 'completed' : 'upcoming'}" data-sc="${r.sc}">
         <td>${formatDate(r.date)}</td>
         <td class="opp">${r.opp}</td>
         <td><span class="venue-pill">${r.venue === 'H' ? 'Home' : 'Away'}</span></td>
@@ -354,6 +362,7 @@ function renderTable(data, headEl, bodyEl){
         window.location.href = tr.dataset.sc;
       });
     });
+    document.getElementById('resultsCount').textContent = `${rows.length} fixture${rows.length === 1 ? '' : 's'}`;
   }
   draw(data);
 
@@ -448,7 +457,7 @@ function loadFixtures(){
     .filter(m => m.team === team && m.season === season)
     .map(m => ({
       date: m.date, opp: m.opp, venue: m.venue, comp: m.comp, result: m.result,
-      resultSummary: m.resultSummary, played: m.played, hasScorecard: m.hasScorecard,
+      resultSummary: m.resultSummary, played: m.played,
       sc: `scorecard.html?id=${m.id}`,
     }));
   applyCompFilter(compMsel.selected);

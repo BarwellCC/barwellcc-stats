@@ -124,7 +124,7 @@ function buildScorecards(db) {
          bp.fours, bp.sixes, bp.how_out
          FROM batting_performances bp
          JOIN players p ON p.id = bp.player_id
-         WHERE bp.innings_id = ?
+         WHERE bp.innings_id = ? AND p.name != 'Selected member not found'
          ORDER BY bp.batting_position`
       )
       .all(usInnings.id);
@@ -136,7 +136,7 @@ function buildScorecards(db) {
         `SELECT p.name, bwp.overs, bwp.maidens, bwp.runs_conceded AS runs, bwp.wickets AS wkts
          FROM bowling_performances bwp
          JOIN players p ON p.id = bwp.player_id
-         WHERE bwp.innings_id = ?
+         WHERE bwp.innings_id = ? AND p.name != 'Selected member not found'
          ORDER BY bwp.id`
       )
       .all(oppInnings.id);
@@ -148,10 +148,15 @@ function buildScorecards(db) {
 }
 
 // Every query below is scoped to a genuine Barwell appearance (the is_us
-// join-direction gotcha, and the "Unsure" fake-player exclusion, are both
-// applied here) but otherwise unfiltered by team/season/comp - that
-// filtering, and all the aggregation, happens client-side in
-// site/js/cricket-calc.js.
+// join-direction gotcha, and the "Unsure"/"Selected member not found"
+// fake-player exclusions, are both applied here) but otherwise unfiltered by
+// team/season/comp - that filtering, and all the aggregation, happens
+// client-side in site/js/cricket-calc.js. "Selected member not found" is the
+// club site's own placeholder for an unresolvable player record (same class
+// of bug as "Unsure", just from the historic scraper rather than
+// Play-Cricket) - scripts/parseScorecardPage.js now skips it at parse time
+// for any future scrape, but this guard also cleans the rows already sitting
+// in the checked-in historic-data dump without needing a re-scrape.
 function buildBattingRows(db) {
   const rows = db
     .prepare(
@@ -162,7 +167,7 @@ function buildBattingRows(db) {
        JOIN innings i ON i.id = bp.innings_id
        JOIN matches m ON m.id = i.match_id
        JOIN players p ON p.id = bp.player_id
-       WHERE i.is_us = 1 AND p.name != 'Unsure'`
+       WHERE i.is_us = 1 AND p.name != 'Unsure' AND p.name != 'Selected member not found'`
     )
     .all();
   // match_id (the autoincrement PK) stays internal, used only to count
@@ -189,7 +194,7 @@ function buildBowlingRows(db) {
        JOIN innings i ON i.id = bw.innings_id
        JOIN matches m ON m.id = i.match_id
        JOIN players p ON p.id = bw.player_id
-       WHERE i.is_us = 0 AND p.name != 'Unsure'`
+       WHERE i.is_us = 0 AND p.name != 'Unsure' AND p.name != 'Selected member not found'`
     )
     .all();
   for (const r of rows) {
@@ -216,7 +221,7 @@ function buildPlayers(db) {
   const rows = db
     .prepare(
       `SELECT DISTINCT p.name FROM players p
-       WHERE p.name != 'Unsure' AND (EXISTS (
+       WHERE p.name != 'Unsure' AND p.name != 'Selected member not found' AND (EXISTS (
          SELECT 1 FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
          WHERE bp.player_id = p.id AND i.is_us = 1
            AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')

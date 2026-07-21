@@ -78,6 +78,35 @@ assert.ok(paulMarvin, 'should find Paul Marvin (double-spaced name in the source
 assert.strictEqual(paulMarvin.runs, 65);
 console.log('parseScorecardPage (2009 sample): PASS');
 
+// --- parseBattingRows/parseBowlingRows: "Selected member not found" is the
+// club site's own placeholder for an unresolvable player record (real
+// examples found in the scraped data, e.g. six matches in 2010 alone) - it
+// must be skipped like an rgNoRecords row, not captured as if it were a real
+// player, or it becomes a fake merged "player" via getOrCreatePlayer (same
+// class of bug as "Unsure" elsewhere in this project) ---
+const { parseBattingRows, parseBowlingRows } = require('../scripts/parseScorecardPage');
+const cheerio = require('cheerio');
+function battingRow(name, runs) {
+  return `<tr><td>${name}</td><td>b</td><td>${runs}</td><td></td><td>0</td><td>0</td><td>0</td><td></td><td>0</td><td>0</td><td>0</td></tr>`;
+}
+const $batting = cheerio.load(
+  `<table><tbody>${battingRow('Selected member not found', '')}${battingRow('Danny Moran', '12')}</tbody></table>`
+);
+const battingResult = parseBattingRows($batting, $batting('table').get(0));
+assert.strictEqual(battingResult.length, 1, 'the placeholder row must not be captured as a batting performance');
+assert.strictEqual(battingResult[0].player_name, 'Danny Moran');
+
+function bowlingRow(name) {
+  return `<tr><td>${name}</td><td>4.0</td><td>0</td><td>20</td><td>1</td></tr>`;
+}
+const $bowling = cheerio.load(
+  `<table><tbody>${bowlingRow('Selected member not found')}${bowlingRow('Danny Moran')}</tbody></table>`
+);
+const bowlingResult = parseBowlingRows($bowling, $bowling('table').get(0));
+assert.strictEqual(bowlingResult.length, 1, 'the placeholder row must not be captured as a bowling performance');
+assert.strictEqual(bowlingResult[0].player_name, 'Danny Moran');
+console.log('parseBattingRows/parseBowlingRows placeholder-name skip: PASS');
+
 // --- buildMatchRecord: fixture-list result class must win over the
 // scorecard's keyword-matching fallback, even when the scorecard's h2.result
 // text contains "conceded" alongside a genuine won/lost fixture-list class

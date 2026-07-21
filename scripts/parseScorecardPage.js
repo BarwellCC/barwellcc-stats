@@ -142,13 +142,21 @@ function parseInningsTotal($, tfoot) {
 // who didn't get to bat - same "did not bat" convention used for
 // Play-Cricket data (see README.md), just detected differently since there's
 // no explicit DNB marker here.
+// The club's site itself renders this literal string (not a scraping
+// artifact) when a scorecard row references a player record it can no
+// longer resolve - same class of problem as "Unsure" elsewhere in this
+// project, just a different placeholder string. Skip it here, at the
+// source, so it never becomes a fake merged "player" via getOrCreatePlayer -
+// same reasoning as skipping rgNoRecords rows below.
+const PLACEHOLDER_NAMES = ['Selected member not found'];
+
 function parseBattingRows($, table) {
   const rows = [];
   $(table).find('> tbody > tr').each((_, tr) => {
     if ($(tr).hasClass('rgNoRecords')) return; // RadGrid's own "no data" placeholder row
     const tds = $(tr).find('> td');
     const name = clean($(tds.get(0)).text());
-    if (!name) return;
+    if (!name || PLACEHOLDER_NAMES.includes(name)) return;
     const dismissalRaw = clean($(tds.get(1)).text());
     const runsText = clean($(tds.get(2)).text());
     const didNotBat = runsText === '';
@@ -175,7 +183,7 @@ function parseBowlingRows($, table) {
     if ($(tr).hasClass('rgNoRecords')) return; // RadGrid's own "no data" placeholder row
     const tds = $(tr).find('> td');
     const name = clean($(tds.get(0)).text());
-    if (!name) return;
+    if (!name || PLACEHOLDER_NAMES.includes(name)) return;
     rows.push({
       player_name: name,
       overs: toNum(clean($(tds.get(1)).text())),
@@ -242,4 +250,7 @@ function parseScorecardPage(html) {
   };
 }
 
-module.exports = { parseScorecardPage, parseResultCode, normalizeHowOut, parseTimeText, parseExtras };
+module.exports = {
+  parseScorecardPage, parseResultCode, normalizeHowOut, parseTimeText, parseExtras,
+  parseBattingRows, parseBowlingRows,
+};
