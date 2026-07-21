@@ -54,6 +54,8 @@ function parseMatchDetail(raw, { ourClubId, season }) {
     result,
     result_description: raw.result_description || null,
     toss: raw.toss || null,
+    our_total: null,
+    opposition_total: null,
     last_updated: raw.last_updated || null,
   };
 

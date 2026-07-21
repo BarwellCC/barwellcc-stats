@@ -63,6 +63,28 @@ assert.strictEqual(matchCount, 1, 'match should not be duplicated on re-sync');
 assert.strictEqual(battingCount, 6, 'batting rows should not be duplicated on re-sync (3 per innings x 2)');
 console.log('re-sync idempotency: PASS');
 
+// Regression test: a match abandoned before a ball was bowled has no
+// `innings` array at all, so parseMatchDetail() never reaches the "our_total
+// from ourInnings" branch - those two keys used to be left off the `match`
+// object entirely rather than set to null, which made insertMatch()'s
+// `@our_total`/`@opposition_total` named parameters throw "Missing named
+// parameter" (confirmed against two real Play-Cricket matches this hit -
+// see README.md).
+const abandonedRaw = {
+  id: 999999,
+  match_date: '01/01/2026',
+  home_club_id: '1835', home_team_id: '1', home_team_name: '1st XI', home_club_name: 'Chingford CC',
+  away_club_id: '9999', away_team_id: '2', away_team_name: '1st XI', away_club_name: 'Some Other CC',
+  result: 'A', result_description: 'Abandoned - rain', result_applied_to: null,
+};
+const abandonedParsed = parseMatchDetail(abandonedRaw, { ourClubId: '1835', season: 2026 });
+assert.strictEqual(abandonedParsed.match.our_total, null);
+assert.strictEqual(abandonedParsed.match.opposition_total, null);
+assert.strictEqual(abandonedParsed.innings.length, 0);
+assert.doesNotThrow(() => insertMatch(db, abandonedParsed), 'a match with no innings must not throw on insert');
+db.prepare('DELETE FROM matches WHERE play_cricket_match_id = 999999').run();
+console.log('parseMatchDetail/insertMatch (abandoned, no innings): PASS');
+
 db.close();
 fs.unlinkSync(dbPath);
 if (fs.existsSync(dbPath + '-wal')) fs.unlinkSync(dbPath + '-wal');
