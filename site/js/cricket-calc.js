@@ -220,9 +220,9 @@
 
   // ---- Player profile: one player's career-best innings/spells and season-by-season splits ----
   // matchId here is match_public_id, same reasoning as statsBatting/statsBowling above.
-  function topBattingInnings(battingRows, player, { teams, n } = {}) {
+  function topBattingInnings(battingRows, player, { teams, comps, n } = {}) {
     return battingRows
-      .filter((r) => r.name === player && r.how_out !== 'did not bat' && (!teams || teams.includes(r.team_name)))
+      .filter((r) => r.how_out !== 'did not bat' && matchesFilter(r, { teams, comps, player }))
       .map((r) => ({
         score: r.runs,
         notOut: r.how_out === 'not out' || r.how_out === 'retired not out',
@@ -239,9 +239,9 @@
       .slice(0, n || 3);
   }
 
-  function topBowlingInnings(bowlingRows, player, { teams, n } = {}) {
+  function topBowlingInnings(bowlingRows, player, { teams, comps, n } = {}) {
     return bowlingRows
-      .filter((r) => r.name === player && (!teams || teams.includes(r.team_name)))
+      .filter((r) => matchesFilter(r, { teams, comps, player }))
       .map((r) => ({
         wickets: r.wickets,
         runsConceded: r.runs_conceded,
@@ -259,11 +259,11 @@
       .slice(0, n || 3);
   }
 
-  function buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams } = {}) {
+  function buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams, comps } = {}) {
     const byName = battingRows.filter((r) => r.name === player);
     const playerId = byName.length ? byName[0].player_id : null;
-    const filtered = byName.filter((r) => !teams || teams.includes(r.team_name));
-    const fieldingFiltered = fieldingRows.filter((r) => r.player_id === playerId && (!teams || teams.includes(r.team_name)));
+    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps }));
+    const fieldingFiltered = fieldingRows.filter((r) => r.player_id === playerId && matchesFilter(r, { teams, comps }));
 
     const bySeason = new Map();
     function entry(season) {
@@ -322,9 +322,9 @@
       .sort((a, b) => b.season - a.season);
   }
 
-  function buildPlayerBowlingBySeason(bowlingRows, player, { teams } = {}) {
+  function buildPlayerBowlingBySeason(bowlingRows, player, { teams, comps } = {}) {
     const byName = bowlingRows.filter((r) => r.name === player);
-    const filtered = byName.filter((r) => !teams || teams.includes(r.team_name));
+    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps }));
 
     const bySeason = new Map();
     for (const r of filtered) {
@@ -362,6 +362,25 @@
       .sort((a, b) => b.season - a.season);
   }
 
+  // ---- Stats page: which players actually have a qualifying appearance
+  // under the current Team/Season/Fixture Type filter, so the Player picker
+  // only ever offers names that can return something - not every player
+  // who's turned out for the club across the whole 17-season history
+  // regardless of what's currently selected. Same "did not bat" exclusion
+  // buildPlayers() uses server-side, just scoped to the live filter instead
+  // of the whole career.
+  function playersInScope(battingRows, bowlingRows, { teams, seasons, comps } = {}) {
+    const names = new Set();
+    for (const r of battingRows) {
+      if (r.how_out === 'did not bat') continue;
+      if (matchesFilter(r, { teams, seasons, comps })) names.add(r.name);
+    }
+    for (const r of bowlingRows) {
+      if (matchesFilter(r, { teams, seasons, comps })) names.add(r.name);
+    }
+    return [...names].sort();
+  }
+
   return {
     oversToBalls, ballsToOvers,
     describeResult, RESULT_LABELS,
@@ -369,5 +388,6 @@
     statsBatting, statsBowling,
     topBattingInnings, topBowlingInnings,
     buildPlayerBattingBySeason, buildPlayerBowlingBySeason,
+    playersInScope,
   };
 });

@@ -491,7 +491,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 
 (async function init(){
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: compOptions, onChange: loadAverages
+    options: compOptions, selected: ['League'], onChange: loadAverages
   });
   await loadTeamsAndSeasons();
   await loadAverages();

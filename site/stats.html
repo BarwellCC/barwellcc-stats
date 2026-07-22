@@ -552,11 +552,10 @@ let teamMsel, seasonMsel, compMsel;
 let battingRows = [], bowlingRows = [];
 
 async function loadFilters(){
-  const [matches, batRows, bowlRows, players] = await Promise.all([
+  const [matches, batRows, bowlRows] = await Promise.all([
     fetch('data/matches.json').then(r => r.json()),
     fetch('data/batting.json').then(r => r.json()),
     fetch('data/bowling.json').then(r => r.json()),
-    fetch('data/players.json').then(r => r.json()),
   ]);
   battingRows = batRows;
   bowlingRows = bowlRows;
@@ -566,18 +565,42 @@ async function loadFilters(){
   const latestSeason = seasonOptions[0]; // sorted newest-first above
 
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
-    options: teamOptions, selected: teamOptions, onChange: loadStats
+    options: teamOptions, selected: teamOptions, onChange: refreshPlayerOptions
   });
   seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
-    options: seasonOptions, selected: [latestSeason], onChange: loadStats
+    options: seasonOptions, selected: [latestSeason], onChange: refreshPlayerOptions
   });
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: compOptions, onChange: loadStats
+    options: compOptions, selected: ['League'], onChange: refreshPlayerOptions
   });
 
+  refreshPlayerOptions();
+}
+
+// Only offer players who actually have a qualifying innings under the
+// current Team/Season/Fixture Type selection - otherwise most of the ~200
+// names in the club's history return "0 innings" under whatever narrower
+// scope happens to be selected (e.g. the League-only, latest-season
+// default), which reads as broken rather than just an empty search.
+function refreshPlayerOptions(){
+  const teams = teamMsel.selected;
+  const seasons = seasonMsel.selected;
+  const comps = compMsel.selected;
+
+  const filter = {
+    teams: teams.length < teamOptions.length ? teams : null,
+    seasons: seasons.length < seasonOptions.length ? seasons : null,
+    comps: comps.length < compOptions.length ? comps : null,
+  };
+  const players = CricketCalc.playersInScope(battingRows, bowlingRows, filter);
+
   const playerPick = document.getElementById('playerPick');
+  const current = playerPick.value;
   playerPick.innerHTML = '<option value="">--Select a Player--</option>' +
     players.map(p => `<option value="${p}">${p}</option>`).join('');
+  playerPick.value = players.includes(current) ? current : '';
+
+  loadStats();
 }
 
 // ---- Horizontal-scroll hint for the results table ----
