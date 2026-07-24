@@ -176,6 +176,7 @@
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--accent); margin:0;
   }
+  .results-right{ display:flex; align-items:baseline; gap: 14px; }
   .results-count{ font-size: 12px; color: var(--ink-soft); }
 
   .card{
@@ -324,7 +325,10 @@
 
   <div class="results-label">
     <p class="section-label">Results</p>
-    <span class="results-count" id="resultsCount"></span>
+    <div class="results-right">
+      <button type="button" class="msel-action" id="copyLinkBtn">Copy Link</button>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -475,16 +479,64 @@ function loadStats(){
   renderHead();
   draw(results);
   document.getElementById('resultsCount').textContent = `${results.length} innings`;
+  syncUrl();
+}
+
+function activateTab(tab){
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+  document.getElementById('scoreRangeRow').style.display = tab === 'batting' ? 'flex' : 'none';
+  document.getElementById('wicketsRow').style.display = tab === 'bowling' ? 'flex' : 'none';
 }
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  t.classList.add('active');
-  activeTab = t.dataset.tab;
-  document.getElementById('scoreRangeRow').style.display = activeTab === 'batting' ? 'flex' : 'none';
-  document.getElementById('wicketsRow').style.display = activeTab === 'bowling' ? 'flex' : 'none';
+  activateTab(t.dataset.tab);
   loadStats();
 }));
+
+// ---- Reflect the current search in the URL, so a filtered view can be
+// bookmarked/shared as a link that reproduces the same results on load.
+// A param is only written when it narrows the default ("All"/latest season/
+// League/batting), keeping plain/default URLs short.
+function parseListParam(params, name, allOptions){
+  const raw = params.get(name);
+  if (!raw) return null;
+  const valid = raw.split(',').map(s => s.trim()).filter(v => allOptions.includes(v));
+  return valid.length ? valid : null;
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  if (teamMsel && teamMsel.selected.length && teamMsel.selected.length < teamOptions.length) params.set('team', teamMsel.selected.join(','));
+  if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
+  if (seasonMsel && seasonMsel.selected.length && seasonMsel.selected.length < seasonOptions.length) params.set('season', seasonMsel.selected.join(','));
+  if (activeTab !== 'batting') params.set('tab', activeTab);
+  const player = document.getElementById('playerPick').value;
+  if (player) params.set('player', player);
+  if (activeTab === 'batting') {
+    const min = document.getElementById('scoreMin').value.trim();
+    const max = document.getElementById('scoreMax').value.trim();
+    if (min) params.set('min', min);
+    if (max) params.set('max', max);
+  } else {
+    const wkts = document.getElementById('minWickets').value;
+    if (wkts && wkts !== '5') params.set('wkts', wkts);
+  }
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('copyLinkBtn');
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = 'Copied!';
+  } catch (e) {
+    window.prompt('Copy this link:', location.href);
+    return;
+  }
+  setTimeout(() => { btn.textContent = 'Copy Link'; }, 1500);
+});
 
 ['scoreMin', 'scoreMax'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') loadStats(); });
@@ -550,6 +602,7 @@ let seasonOptions = [];
 const compOptions = ["League", "Cup", "Friendly"];
 let teamMsel, seasonMsel, compMsel;
 let battingRows = [], bowlingRows = [];
+let initialPlayerParam = '';
 
 async function loadFilters(){
   const [matches, batRows, bowlRows] = await Promise.all([
@@ -564,14 +617,24 @@ async function loadFilters(){
   seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);
   const latestSeason = seasonOptions[0]; // sorted newest-first above
 
+  const params = new URLSearchParams(location.search);
+  const teamSel = parseListParam(params, 'team', teamOptions) || teamOptions;
+  const seasonSel = parseListParam(params, 'season', seasonOptions) || [latestSeason];
+  const compSel = parseListParam(params, 'comp', compOptions) || ['League'];
+  initialPlayerParam = params.get('player') || '';
+  if (params.get('min')) document.getElementById('scoreMin').value = params.get('min');
+  if (params.get('max')) document.getElementById('scoreMax').value = params.get('max');
+  if (params.get('wkts')) document.getElementById('minWickets').value = params.get('wkts');
+  activateTab(params.get('tab') === 'bowling' ? 'bowling' : 'batting');
+
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
-    options: teamOptions, selected: teamOptions, onChange: refreshPlayerOptions
+    options: teamOptions, selected: teamSel, onChange: refreshPlayerOptions
   });
   seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
-    options: seasonOptions, selected: [latestSeason], onChange: refreshPlayerOptions
+    options: seasonOptions, selected: seasonSel, onChange: refreshPlayerOptions
   });
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: ['League'], onChange: refreshPlayerOptions
+    options: compOptions, selected: compSel, onChange: refreshPlayerOptions
   });
 
   refreshPlayerOptions();
@@ -595,7 +658,8 @@ function refreshPlayerOptions(){
   const players = CricketCalc.playersInScope(battingRows, bowlingRows, filter);
 
   const playerPick = document.getElementById('playerPick');
-  const current = playerPick.value;
+  const current = playerPick.value || initialPlayerParam;
+  initialPlayerParam = ''; // only ever applied on the first call, after that the live selection wins
   playerPick.innerHTML = '<option value="">--Select a Player--</option>' +
     players.map(p => `<option value="${p}">${p}</option>`).join('');
   playerPick.value = players.includes(current) ? current : '';

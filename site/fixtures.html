@@ -156,6 +156,7 @@
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--accent); margin: 0;
   }
+  .results-right{ display:flex; align-items:baseline; gap: 14px; }
   .results-count{ font-size: 12px; color: var(--ink-soft); }
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -294,7 +295,10 @@
 
   <div class="results-label">
     <p class="section-label">Fixtures &amp; Results</p>
-    <span class="results-count" id="resultsCount"></span>
+    <div class="results-right">
+      <button type="button" class="msel-action" id="copyLinkBtn">Copy Link</button>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
   </div>
   <div class="card">
     <div class="table-scroll" id="fixturesScroll">
@@ -471,10 +475,29 @@ async function loadTeamsAndSeasons(){
 
   const teamPick = document.getElementById('teamPick');
   teamPick.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join('');
-  if (teams.includes('1st XI')) teamPick.value = '1st XI';
 
   const seasonPick = document.getElementById('seasonPick');
   seasonPick.innerHTML = seasons.map(s => `<option value="${s}">${s}</option>`).join('');
+
+  const params = new URLSearchParams(location.search);
+  const teamParam = params.get('team');
+  teamPick.value = teamParam && teams.includes(teamParam) ? teamParam : (teams.includes('1st XI') ? '1st XI' : teams[0]);
+
+  const seasonParam = Number(params.get('season'));
+  seasonPick.value = seasons.includes(seasonParam) ? String(seasonParam) : String(seasons[0]);
+}
+
+// ---- Reflect the current search in the URL, so a filtered view can be
+// bookmarked/shared as a link that reproduces the same results on load.
+function syncUrl(){
+  const params = new URLSearchParams();
+  const team = document.getElementById('teamPick').value;
+  const season = document.getElementById('seasonPick').value;
+  if (team) params.set('team', team);
+  if (season) params.set('season', season);
+  if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
 
 // ---- Horizontal-scroll hint for tables (shows a fade only when there's more to scroll) ----
@@ -501,14 +524,36 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   localStorage.setItem('barwellcc-theme', next);
 });
 
+function parseListParam(params, name, allOptions){
+  const raw = params.get(name);
+  if (!raw) return null;
+  const valid = raw.split(',').map(s => s.trim()).filter(v => allOptions.includes(v));
+  return valid.length ? valid : null;
+}
+
+document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('copyLinkBtn');
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = 'Copied!';
+  } catch (e) {
+    window.prompt('Copy this link:', location.href);
+    return;
+  }
+  setTimeout(() => { btn.textContent = 'Copy Link'; }, 1500);
+});
+
 (async function init(){
+  const params = new URLSearchParams(location.search);
+  const compSel = parseListParam(params, 'comp', compOptions) || compOptions;
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: compOptions, onChange: applyCompFilter
+    options: compOptions, selected: compSel, onChange: (sel) => { applyCompFilter(sel); syncUrl(); }
   });
   await loadTeamsAndSeasons();
-  document.getElementById('teamPick').addEventListener('change', loadFixtures);
-  document.getElementById('seasonPick').addEventListener('change', loadFixtures);
+  document.getElementById('teamPick').addEventListener('change', () => { loadFixtures(); syncUrl(); });
+  document.getElementById('seasonPick').addEventListener('change', () => { loadFixtures(); syncUrl(); });
   await loadFixtures();
+  syncUrl();
 })();
 </script>
 </body>

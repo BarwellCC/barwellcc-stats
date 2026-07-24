@@ -210,6 +210,7 @@
   .msel-item input{ accent-color: var(--pitch-green); width: 16px; height: 16px; flex-shrink:0; }
 
   .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
+  .results-right{ display:flex; align-items:baseline; gap: 14px; }
   .results-count{ font-size: 12px; color: var(--ink-soft); }
 
   .card{
@@ -345,7 +346,10 @@
 
     <div class="results-label">
       <p class="section-label" id="seasonLabel" style="margin:0;">Batting &amp; Fielding Stats</p>
-      <span class="results-count" id="resultsCount"></span>
+      <div class="results-right">
+        <button type="button" class="msel-action" id="copyLinkBtn">Copy Link</button>
+        <span class="results-count" id="resultsCount"></span>
+      </div>
     </div>
     <div class="card">
       <div class="table-scroll" id="seasonScroll">
@@ -592,6 +596,7 @@ function loadSeasonTable(player){
   renderSeasonHead();
   drawSeasonTable(seasonRows);
   document.getElementById('resultsCount').textContent = `${seasonRows.length} season${seasonRows.length === 1 ? '' : 's'}`;
+  syncUrl();
 }
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
@@ -600,6 +605,36 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   activeTab = t.dataset.tab;
   loadSeasonTable(currentPlayer);
 }));
+
+// ---- Reflect the current search in the URL, so a filtered view can be
+// bookmarked/shared as a link that reproduces the same results on load.
+function parseListParam(params, name, allOptions){
+  const raw = params.get(name);
+  if (!raw) return null;
+  const valid = raw.split(',').map(s => s.trim()).filter(v => allOptions.includes(v));
+  return valid.length ? valid : null;
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  params.set('name', currentPlayer);
+  if (teamMsel && teamMsel.selected.length && teamMsel.selected.length < teamOptions.length) params.set('team', teamMsel.selected.join(','));
+  if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
+  if (activeTab !== 'batting') params.set('tab', activeTab);
+  history.replaceState(null, '', `?${params.toString()}`);
+}
+
+document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('copyLinkBtn');
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = 'Copied!';
+  } catch (e) {
+    window.prompt('Copy this link:', location.href);
+    return;
+  }
+  setTimeout(() => { btn.textContent = 'Copy Link'; }, 1500);
+});
 
 // ---- Reusable multi-select dropdown (same component as Averages/Stats) ----
 function initMultiSelect(root, {options, selected, labelForNone, onChange}){
@@ -679,9 +714,12 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 let currentPlayer = null;
 
 (async function init(){
-  const player = new URLSearchParams(location.search).get('name');
+  const params = new URLSearchParams(location.search);
+  const player = params.get('name');
   if (!player) { showMessage('No player selected.'); return; }
   currentPlayer = player;
+  activeTab = params.get('tab') === 'bowling' ? 'bowling' : 'batting';
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
 
   const [batRows, bowlRows, fieldRows] = await Promise.all([
     fetch('data/batting.json').then(r => r.json()),
@@ -708,11 +746,13 @@ let currentPlayer = null;
     : '';
 
   teamOptions = [...new Set([...ownBatting, ...ownBowling].map(r => r.team_name))].sort();
+  const teamSel = parseListParam(params, 'team', teamOptions) || teamOptions;
+  const compSel = parseListParam(params, 'comp', compOptions) || ['League'];
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
-    options: teamOptions, selected: teamOptions, onChange: () => loadSeasonTable(player)
+    options: teamOptions, selected: teamSel, onChange: () => loadSeasonTable(player)
   });
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: ['League'], onChange: () => loadSeasonTable(player)
+    options: compOptions, selected: compSel, onChange: () => loadSeasonTable(player)
   });
 
   loadSeasonTable(player);

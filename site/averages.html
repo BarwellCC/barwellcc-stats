@@ -147,6 +147,7 @@
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--accent); margin: 0;
   }
+  .results-right{ display:flex; align-items:baseline; gap: 14px; }
   .results-count{ font-size: 12px; color: var(--ink-soft); }
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -266,7 +267,10 @@
 
   <div class="results-label">
     <p class="section-label">Results</p>
-    <span class="results-count" id="resultsCount"></span>
+    <div class="results-right">
+      <button type="button" class="msel-action" id="copyLinkBtn">Copy Link</button>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -350,6 +354,7 @@ function renderActiveTable(){
   const cols = activeTab === 'batting' ? battingCols : bowlingCols;
   renderTable(data, cols, document.getElementById("resultsHead"), document.getElementById("resultsBody"));
   document.getElementById('resultsCount').textContent = `${data.length} player${data.length === 1 ? '' : 's'}`;
+  syncUrl();
 }
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
@@ -358,6 +363,37 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   activeTab = t.dataset.tab;
   renderActiveTable();
 }));
+
+// ---- Reflect the current search in the URL, so a filtered view can be
+// bookmarked/shared as a link that reproduces the same results on load.
+function parseListParam(params, name, allOptions){
+  const raw = params.get(name);
+  if (!raw) return null;
+  const valid = raw.split(',').map(s => s.trim()).filter(v => allOptions.includes(v));
+  return valid.length ? valid : null;
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  if (teamMsel && teamMsel.selected.length && teamMsel.selected.length < teamOptions.length) params.set('team', teamMsel.selected.join(','));
+  if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
+  if (seasonMsel && seasonMsel.selected.length && seasonMsel.selected.length < seasonOptions.length) params.set('season', seasonMsel.selected.join(','));
+  if (activeTab !== 'batting') params.set('tab', activeTab);
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('copyLinkBtn');
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = 'Copied!';
+  } catch (e) {
+    window.prompt('Copy this link:', location.href);
+    return;
+  }
+  setTimeout(() => { btn.textContent = 'Copy Link'; }, 1500);
+});
 
 // ---- Reusable single/multi-select dropdown ----
 function initMultiSelect(root, {options, selected, labelForNone, onChange}){
@@ -456,12 +492,15 @@ async function loadTeamsAndSeasons(){
   seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);
   const latestSeason = seasonOptions[0]; // sorted newest-first above
 
+  const params = new URLSearchParams(location.search);
+  const teamSel = parseListParam(params, 'team', teamOptions) || (teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1));
+  const seasonSel = parseListParam(params, 'season', seasonOptions) || [latestSeason];
+
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
-    options: teamOptions, selected: teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1),
-    onChange: loadAverages
+    options: teamOptions, selected: teamSel, onChange: loadAverages
   });
   seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
-    options: seasonOptions, selected: [latestSeason], onChange: loadAverages
+    options: seasonOptions, selected: seasonSel, onChange: loadAverages
   });
 }
 
@@ -490,8 +529,12 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 });
 
 (async function init(){
+  const params = new URLSearchParams(location.search);
+  activeTab = params.get('tab') === 'bowling' ? 'bowling' : 'batting';
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
+  const compSel = parseListParam(params, 'comp', compOptions) || ['League'];
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
-    options: compOptions, selected: ['League'], onChange: loadAverages
+    options: compOptions, selected: compSel, onChange: loadAverages
   });
   await loadTeamsAndSeasons();
   await loadAverages();
