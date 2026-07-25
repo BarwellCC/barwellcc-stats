@@ -8,14 +8,23 @@ re-deriving them.
 
 Village club, established 1807, with a literal "Honours Board" already on the
 old site. Design leans into that: a scorebook/pavilion feel rather than a
-generic sports-dashboard look. Signature element: a dark-green "plaque"
+generic sports-dashboard look. Signature element: a dark-navy "plaque"
 header band with brass/gold lettering, echoing an engraved honours board.
+
+**Update:** the header band was originally an invented dark green. Replaced
+site-wide with a navy sampled directly from the club's actual crest
+(barwellcc.co.uk) — gold circle, navy ring/hare silhouette — so the site's
+signature colour is the real Barwell CC identity rather than a generic
+"cricket pitch" green, and so it doesn't clash with the navy-on-white
+Play-Cricket attribution logo on Scorecard (see `site/scorecard.html`). The
+CSS variable is still named `--pitch-green`/`--pitch-green-dark` on every
+page (a value-only change, not a rename) — don't be misled by the name.
 
 ## Tokens
 
 ```css
---pitch-green:      #1E3A2B;   /* header band, primary accent — fixed, same in both themes */
---pitch-green-dark: #142A1E;   /* header band gradient end — fixed, same in both themes */
+--pitch-green:      #1A5478;   /* header band, primary accent — fixed, same in both themes. Sampled from the club's real crest; var name kept from the original green for continuity */
+--pitch-green-dark: #0D3550;   /* header band gradient end — fixed, same in both themes */
 --cream:             #F6F1E4;   /* fixed light text-on-dark-surface colour (plaque/nav/buttons) — NOT the page bg, and does not change with theme */
 --bg-page:           #F6F1E4;   /* page background — flips dark, see Dark mode below */
 --card:              #FFFDF8;   /* card/table background, odd rows — flips dark */
@@ -58,16 +67,22 @@ visit. Implementation:
   scores) sitting directly on `--card`/`--bg-page`,
   so it needs to brighten in dark mode or it goes nearly invisible on a dark
   card. Don't reuse `--maroon` for a new text-color use case — use `--accent`.
-- `--pitch-green`, `--pitch-green-dark`, `--cream`, `--brass`, `--brass-bright`
-  don't change between themes — they only ever appear on the plaque/nav, which
-  stay dark green in both themes.
+- `--pitch-green-dark`, `--cream`, `--brass`, `--brass-bright` don't change
+  between themes — they only ever appear on the plaque/nav, which stay dark
+  navy in both themes. `--pitch-green` itself is the one exception: on Stats
+  specifically it's also used as *text/border* (`.not-out`, `.tab:hover`,
+  `thead th:hover`) sitting directly on `--card`, not just as a solid fill
+  (nav bar, `.tab.active`, header gradient) — same `--accent`-vs-`--maroon`
+  problem described above — so Stats brightens it in dark mode
+  (`#5B9BD5`) while the other four pages don't need to, since they only ever
+  use it as a solid fill.
 - Fixtures' W/L pills (`--win`/`--loss`) also brighten in dark mode so they
   stay visible against the darker card background, not just for their
   (always-white) internal text contrast.
 
 ## Component patterns (reusable — see `mockups/*.html` for full code)
 
-- **Site nav** (`.site-nav`): slim dark-green bar above the plaque, full-bleed
+- **Site nav** (`.site-nav`): slim dark-navy bar above the plaque, full-bleed
   like the plaque itself. Three links — Fixtures, Stats, Averages — as
   separate pages sharing this nav, not tabs within one page. Active link gets
   brass text + brass underline. Present identically at the top of all three

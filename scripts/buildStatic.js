@@ -91,7 +91,7 @@ function buildScorecards(db) {
   // scripts/parseScorecardPage.js). Excludes genuinely upcoming fixtures.
   const playedMatches = db
     .prepare(
-      `SELECT id, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
+      `SELECT id, source, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
        home_or_away, competition_name, competition_type, result, our_total, opposition_total
        FROM matches
        WHERE result IS NOT NULL OR id IN (SELECT match_id FROM innings)`

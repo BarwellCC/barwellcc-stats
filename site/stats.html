@@ -16,35 +16,65 @@
 <style>
   :root{
     color-scheme: light dark;
-    --pitch-green: #1E3A2B;
-    --pitch-green-dark: #142A1E;
+    /* Navy sampled from the club's actual crest (barwellcc.co.uk), replacing
+       the site's earlier invented green - see site/scorecard.html for the
+       full rationale. Fixed, same in both themes; the brighter dark-mode
+       --pitch-green override below (for text/border uses sitting directly
+       on --card rather than a solid fill) follows the same --accent-style
+       logic as before, just with a navy family bright enough to read on a
+       dark card instead of the old bright green. */
+    --pitch-green: #1A5478;
+    --pitch-green-dark: #0D3550;
     --cream: #F6F1E4;
-    --bg-page: #F6F1E4;
-    --card: #FFFDF8;
-    --row-even: #F5EFE1;
-    --head-bg: #EDE7D6;
+    /* Light-mode neutrals used to share --brass's exact hue (~43deg), just
+       lighter/desaturated - fine against the old green structure, but once
+       gold became a real accent colour (--gold-hover on dropdown borders/checkbox ticks) that
+       meant the "neutral" backgrounds were secretly the same colour as the
+       accent, so gold never read as distinct - everything sat in one muddy
+       warm family with navy alone on the outside. Desaturated these toward
+       true neutral gray (same hue kept faintly, ~9-15% saturation instead of
+       30-50%) so both navy and gold pop against genuinely neutral scaffolding
+       instead of competing with a tinted background. */
+    --bg-page: #F4F3F1;
+    --card: #FDFDFC;
+    --row-even: #F1F0EE;
+    --head-bg: #E8E6E3;
     --ink: #201E18;
     --ink-soft: #5B5548;
-    --maroon: #7A2E2E;
-    --accent: #7A2E2E;
-    --accent-underline: rgba(122,46,46,0.35);
+    /* --accent used to be a maroon/red (text/links/scores/section labels) -
+       replaced with a blue from the same navy family as --pitch-green, but
+       more saturated so it still reads as a distinct "accent" rather than a
+       repeat of the muted structural navy. */
+    --maroon: #1A5478;
+    --accent: #0A6CB3;
+    --accent-underline: rgba(10,108,179,0.35);
     --brass: #B8923A;
     --brass-bright: #D4AF5A;
-    --line: #E1D8C0;
-    --line-strong: #CBBE9C;
+    /* Gold for interactive chrome specifically (hover/open borders, checkbox
+       ticks) - brass in light mode, the lighter brass-bright in dark mode
+       since plain brass is too washed-out against a dark card to read as a
+       highlight. Separate from --accent (blue, for text/links/scores) and
+       --pitch-green (navy, structural) - three-tone system, more gold
+       throughout without every hover state turning into body-text blue. */
+    --gold-hover: var(--brass);
+    --line: #DCDAD5;
+    --line-strong: #BFBBB0;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C; --pitch-green: #4F8C5C;
-      --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
+      /* Dark neutrals shifted from a green tint to a navy tint (bg-page/card/
+         row-even/head-bg/line/line-strong), to match the new crest-navy
+         scheme instead of the site's old invented green. */
+      --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --pitch-green: #5B9BD5; --gold-hover: var(--brass-bright);
+      --accent-underline: rgba(91,155,213,0.4); --line: #2B3944; --line-strong: #3D4F5C;
     }
   }
   :root[data-theme="dark"]{
-    --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C; --pitch-green: #4F8C5C;
-    --accent-underline: rgba(224,137,124,0.4); --line: #2E3D33; --line-strong: #415447;
+    --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --pitch-green: #5B9BD5; --gold-hover: var(--brass-bright);
+    --accent-underline: rgba(91,155,213,0.4); --line: #2B3944; --line-strong: #3D4F5C;
     color-scheme: dark;
   }
   :root[data-theme="light"]{ color-scheme: light; }
@@ -98,7 +128,7 @@
 
   .search-card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 16px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+    padding: 16px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(32,30,24,0.04);
   }
   .search-lead{ font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; line-height:1.5; }
   .field-grid{ display:grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 14px; }
@@ -153,14 +183,14 @@
     padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line-strong);
     background: var(--card); color: var(--ink); cursor: pointer;
   }
-  .msel-btn:hover{ border-color: var(--pitch-green); }
-  .msel.open .msel-btn{ border-color: var(--pitch-green); }
+  .msel-btn:hover{ border-color: var(--gold-hover); }
+  .msel.open .msel-btn{ border-color: var(--gold-hover); }
   .msel-arrow{ font-size: 9px; color: var(--ink-soft); transition: transform .15s ease; flex-shrink:0; }
   .msel.open .msel-arrow{ transform: rotate(180deg); }
   .msel-panel{
     display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20;
     background: var(--card); border: 1px solid var(--line-strong); border-radius: 8px;
-    box-shadow: 0 10px 28px rgba(20,42,30,0.16); padding: 8px;
+    box-shadow: 0 10px 28px rgba(21,20,16,0.16); padding: 8px;
     max-height: 260px; overflow-y: auto;
   }
   .msel.open .msel-panel{ display:block; }
@@ -168,8 +198,8 @@
   .msel-action{ background:none; border:none; padding:0; font-size: 11.5px; font-weight: 700; color: var(--accent); cursor: pointer; }
   .msel-action:hover{ text-decoration: underline; }
   .msel-item{ display:flex; align-items:center; gap:8px; padding: 8px 6px; border-radius: 5px; font-size: 14px; cursor: pointer; }
-  .msel-item:hover{ background: rgba(30,58,43,0.06); }
-  .msel-item input{ accent-color: var(--pitch-green); width: 16px; height: 16px; flex-shrink:0; }
+  .msel-item:hover{ background: rgba(32,30,24,0.06); }
+  .msel-item input{ accent-color: var(--gold-hover); width: 16px; height: 16px; flex-shrink:0; }
 
   .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .section-label{
@@ -181,12 +211,12 @@
 
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(32,30,24,0.04);
   }
   .table-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius: var(--radius); }
   .table-scroll::after{
     content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
-    background: linear-gradient(to right, transparent, rgba(20,42,30,0.10));
+    background: linear-gradient(to right, transparent, rgba(21,20,16,0.10));
     opacity:0; transition: opacity .15s ease; pointer-events:none;
   }
   .table-scroll.has-scroll::after{ opacity:1; }
@@ -197,7 +227,7 @@
     border-bottom: 1px solid var(--line-strong); background: var(--head-bg);
     white-space: nowrap; cursor: pointer; user-select: none;
   }
-  thead th:hover{ color: var(--pitch-green); }
+  thead th:hover{ color: var(--accent); }
   thead th .arrow{ display:inline-block; width: 9px; opacity: 0.35; font-size: 9px; }
   thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
   thead th.num{ text-align: right; }
@@ -207,11 +237,6 @@
   td.score{ font-variant-numeric: tabular-nums; text-align:right; font-weight: 700; color: var(--accent); }
   .not-out{ color: var(--pitch-green); font-weight: 700; }
   .venue-away{ color: var(--ink-soft); }
-  a.scorecard-link{
-    color: var(--accent); font-weight: 600; font-size: 12.5px; text-decoration: none;
-    border-bottom: 1px solid var(--accent-underline);
-  }
-  a.scorecard-link:hover{ border-color: var(--accent); }
   a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
   a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline); }
 
@@ -219,6 +244,19 @@
   thead th:first-child{ position: sticky; left:0; z-index:3; background: var(--head-bg); }
   tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
+
+  /* Score is frozen alongside the name too - `left` is set from JS
+     (freezeSecondColumn) since the name column's width is content-dependent,
+     not a fixed value CSS could hardcode. */
+  thead th:nth-child(2){ position: sticky; z-index:3; background: var(--head-bg); }
+  tbody td:nth-child(2){ position: sticky; z-index:1; background: var(--card); }
+  tbody tr:nth-child(even) td:nth-child(2){ background: var(--row-even); }
+
+  /* Whole row navigates to the scorecard (not just a text link) - comes after
+     the sticky-column rules above so the hover tint wins there too (same
+     specificity, source order breaks the tie), not just on the other cells. */
+  tbody tr[data-sc]{ cursor: pointer; }
+  tbody tr[data-sc]:hover td{ background: var(--head-bg); }
 
   tr.no-records td{
     text-align: center; color: var(--ink-soft); font-style: italic;
@@ -307,12 +345,12 @@
     <div class="wickets-row" id="wicketsRow" style="display:none;">
       <span>Show performances with</span>
       <select id="minWickets">
-        <option value="0">0</option>
+        <option value="0" selected>0</option>
         <option value="1">1</option>
         <option value="2">2</option>
         <option value="3">3</option>
         <option value="4">4</option>
-        <option value="5" selected>5</option>
+        <option value="5">5</option>
         <option value="6">6</option>
         <option value="7">7</option>
         <option value="8">8</option>
@@ -367,7 +405,6 @@ const battingCols = [
   {key:"fixture", label:"Fixture"},
   {key:"opp", label:"Opposition"},
   {key:"venue", label:"Venue"},
-  {key:"scorecard", label:""},
 ];
 const bowlingCols = [
   {key:"player", label:"Player"},
@@ -379,7 +416,6 @@ const bowlingCols = [
   {key:"fixture", label:"Fixture"},
   {key:"opp", label:"Opposition"},
   {key:"venue", label:"Venue"},
-  {key:"scorecard", label:""},
 ];
 function currentCols(){ return activeTab === 'batting' ? battingCols : bowlingCols; }
 
@@ -394,25 +430,49 @@ function cellHtml(r, c){
   if (c.key === "score") return `<td class="score">${val}</td>`;
   if (c.key === "date") return `<td>${formatDate(val)}</td>`;
   if (c.key === "venue") return `<td class="${val === 'A' ? 'venue-away' : ''}">${val === 'H' ? 'Home' : 'Away'}</td>`;
-  if (c.key === "scorecard") return `<td><a class="scorecard-link" href="scorecard.html?id=${r.matchId}">Scorecard</a></td>`;
   return `<td>${val}</td>`;
 }
 
 function draw(rows){
   const cols = currentCols();
   document.getElementById("resultsBody").innerHTML = rows.length
-    ? rows.map(r => `<tr>${cols.map(c => cellHtml(r, c)).join("")}</tr>`).join("")
+    ? rows.map(r => `<tr data-sc="scorecard.html?id=${r.matchId}">${cols.map(c => cellHtml(r, c)).join("")}</tr>`).join("")
     : `<tr class="no-records"><td colspan="${cols.length}">No records to display.</td></tr>`;
+  freezeSecondColumn(document.querySelector("#resultsScroll table"));
 }
+
+// Score is frozen next to the name column, same as the name column itself -
+// but its `left` offset depends on the name column's rendered width, which
+// varies with content/viewport, so it can't be a fixed CSS value.
+function freezeSecondColumn(table){
+  const firstTh = table && table.querySelector('thead th:first-child');
+  if (!firstTh) return;
+  const left = firstTh.getBoundingClientRect().width + 'px';
+  table.querySelectorAll('th:nth-child(2), td:nth-child(2)').forEach(el => { el.style.left = left; });
+}
+window.addEventListener('resize', () => freezeSecondColumn(document.querySelector("#resultsScroll table")));
+
+// Whole row navigates to the scorecard - delegated on the tbody so it keeps
+// working across every re-render (sort, filter change) without needing to
+// re-attach a listener per row.
+document.getElementById('resultsBody').addEventListener('click', (e) => {
+  if (e.target.closest('a')) return; // let the player link itself navigate natively
+  const tr = e.target.closest('tr[data-sc]');
+  if (tr) window.location.href = tr.dataset.sc;
+});
 
 function renderHead(){
   const cols = currentCols();
   const headEl = document.getElementById("resultsHead");
+  // Defaults to sorted by Date, most recent first - results arrive pre-sorted
+  // this way from loadStats(), so the header needs to say so too rather than
+  // showing every arrow dim as if nothing were sorted yet.
+  const defaultSortIndex = cols.findIndex(c => c.key === 'date');
   headEl.innerHTML = cols.map((c,i) =>
-    `<th class="${c.numClass||''}" data-i="${i}">${c.label}${c.label ? '<span class="arrow">▲</span>' : ''}</th>`
+    `<th class="${c.numClass||''} ${i === defaultSortIndex ? 'sorted' : ''}" data-i="${i}">${c.label}${c.label ? `<span class="arrow">${i === defaultSortIndex ? '▼' : '▲'}</span>` : ''}</th>`
   ).join("");
 
-  let sortState = { i: null, dir: 1 };
+  let sortState = { i: defaultSortIndex, dir: -1 };
   [...headEl.children].forEach((th, i) => {
     const col = cols[i];
     if (!col.label) return; // scorecard column isn't sortable
@@ -440,12 +500,13 @@ function renderEmpty(message){
   renderHead();
   draw(results);
   document.getElementById('resultsCount').textContent = message;
+  syncUrl();
 }
 
 function loadStats(){
   const player = document.getElementById('playerPick').value;
   if (!player) {
-    renderEmpty('Select a player above to see their innings');
+    renderEmpty('0 innings');
     return;
   }
 
@@ -475,7 +536,9 @@ function loadStats(){
 
   const rows = activeTab === 'batting' ? battingRows : bowlingRows;
   const calc = activeTab === 'batting' ? CricketCalc.statsBatting : CricketCalc.statsBowling;
-  results = calc(rows, filter);
+  // calc() itself returns rows sorted by score/wickets - re-sort to match the
+  // Date-descending default the header now shows (most recent innings first).
+  results = calc(rows, filter).sort((a, b) => new Date(b.date) - new Date(a.date));
   renderHead();
   draw(results);
   document.getElementById('resultsCount').textContent = `${results.length} innings`;
@@ -510,7 +573,7 @@ function syncUrl(){
   if (teamMsel && teamMsel.selected.length && teamMsel.selected.length < teamOptions.length) params.set('team', teamMsel.selected.join(','));
   if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
   if (seasonMsel && seasonMsel.selected.length && seasonMsel.selected.length < seasonOptions.length) params.set('season', seasonMsel.selected.join(','));
-  if (activeTab !== 'batting') params.set('tab', activeTab);
+  params.set('tab', activeTab);
   const player = document.getElementById('playerPick').value;
   if (player) params.set('player', player);
   if (activeTab === 'batting') {
@@ -520,7 +583,7 @@ function syncUrl(){
     if (max) params.set('max', max);
   } else {
     const wkts = document.getElementById('minWickets').value;
-    if (wkts && wkts !== '5') params.set('wkts', wkts);
+    if (wkts && wkts !== '0') params.set('wkts', wkts);
   }
   const qs = params.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
@@ -692,7 +755,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 });
 
 (async function init(){
-  renderEmpty('Select a player above to see their innings');
+  renderEmpty('0 innings');
   await loadFilters();
 })();
 </script>

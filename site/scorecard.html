@@ -16,36 +16,60 @@
 <style>
   :root{
     color-scheme: light dark;
-    --pitch-green: #1E3A2B;
-    --pitch-green-dark: #142A1E;
+    /* Navy sampled from the club's actual crest (barwellcc.co.uk) - navy blue
+       ring/hare on a gold circle - replacing the site's earlier invented
+       green so it reads as "Barwell CC" (and pairs with the Play-Cricket
+       logo, itself navy-on-white). Fixed, same in both themes. Var name kept
+       as pitch-green across every page rather than renamed, to keep this a
+       value-only change. */
+    --pitch-green: #1A5478;
+    --pitch-green-dark: #0D3550;
     --cream: #F6F1E4;
-    --bg-page: #F6F1E4;
-    --card: #FFFDF8;
-    --row-even: #F5EFE1;
-    --head-bg: #EDE7D6;
+    /* Light-mode neutrals used to share --brass's exact hue (~43deg), just
+       lighter/desaturated - fine against the old green structure, but once
+       gold became a real accent colour (--gold-hover on dropdown borders/checkbox ticks) that
+       meant the "neutral" backgrounds were secretly the same colour as the
+       accent, so gold never read as distinct - everything sat in one muddy
+       warm family with navy alone on the outside. Desaturated these toward
+       true neutral gray (same hue kept faintly, ~9-15% saturation instead of
+       30-50%) so both navy and gold pop against genuinely neutral scaffolding
+       instead of competing with a tinted background. */
+    --bg-page: #F4F3F1;
+    --card: #FDFDFC;
+    --row-even: #F1F0EE;
+    --head-bg: #E8E6E3;
     --ink: #201E18;
     --ink-soft: #5B5548;
-    --maroon: #7A2E2E;
-    --accent: #7A2E2E;
+    /* --accent used to be a maroon/red (text/links/section labels) - replaced
+       with a blue from the same navy family as --pitch-green, but more
+       saturated so it still reads as a distinct "accent" rather than a
+       repeat of the muted structural navy. --win/--loss (result pill) are
+       untouched - green/red there is a functional win-loss code, not a
+       branding colour. */
+    --maroon: #1A5478;
+    --accent: #0A6CB3;
     --brass: #B8923A;
     --brass-bright: #D4AF5A;
-    --line: #E1D8C0;
-    --line-strong: #CBBE9C;
+    --line: #DCDAD5;
+    --line-strong: #BFBBB0;
     --win: #2F5D3A;
     --loss: #7A2E2E;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
-      --line: #2E3D33; --line-strong: #415447; --win: #4F8C5C; --loss: #C1584F;
+      /* Dark neutrals shifted from a green tint to a navy tint (bg-page/card/
+         row-even/head-bg/line/line-strong), to match the new crest-navy
+         scheme instead of the site's old invented green. */
+      --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5;
+      --line: #2B3944; --line-strong: #3D4F5C; --win: #4F8C5C; --loss: #C1584F;
     }
   }
   :root[data-theme="dark"]{
-    --bg-page: #161F19; --card: #1F2B23; --row-even: #24312A; --head-bg: #293830;
-    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #E0897C;
-    --line: #2E3D33; --line-strong: #415447; --win: #4F8C5C; --loss: #C1584F;
+    --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5;
+    --line: #2B3944; --line-strong: #3D4F5C; --win: #4F8C5C; --loss: #C1584F;
     color-scheme: dark;
   }
   :root[data-theme="light"]{ color-scheme: light; }
@@ -118,7 +142,15 @@
   .score-team.us{ color: var(--brass-bright); }
   .score-figure{ font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; }
   .score-overs{ font-size: 11px; color: rgba(246,241,228,0.6); font-weight: 500; margin-left: 6px; }
-  .match-result{ display:flex; align-items:center; gap:8px; margin-top: 14px; position:relative; font-size: 13px; font-weight: 600; }
+  .match-result-row{ display:flex; align-items:center; justify-content: space-between; gap: 10px; margin-top: 14px; position:relative; }
+  .match-result{ display:flex; align-items:center; gap:8px; font-size: 13px; font-weight: 600; }
+  /* Play-Cricket attribution logo (white/transparent variant, site/img/) -
+     same row as the result, right-aligned - only for matches synced from the
+     Play-Cricket API (not historic/scraped ones). The onerror handler on the
+     <img> itself hides it cleanly if the file's ever missing, rather than
+     showing a broken-image icon. */
+  .pc-logo{ display:block; height: 20px; width:auto; flex-shrink:0; }
+  @media (min-width: 640px){ .pc-logo{ height: 25px; } }
 
   .result-pill{
     display:inline-flex; align-items:center; justify-content:center;
@@ -136,12 +168,12 @@
   }
   .card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(30,58,43,0.04);
+    margin-bottom: 26px; box-shadow: 0 1px 2px rgba(32,30,24,0.04);
   }
   .table-scroll{ position:relative; overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius: var(--radius); }
   .table-scroll::after{
     content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
-    background: linear-gradient(to right, transparent, rgba(20,42,30,0.10));
+    background: linear-gradient(to right, transparent, rgba(21,20,16,0.10));
     opacity:0; transition: opacity .15s ease; pointer-events:none;
   }
   .table-scroll.has-scroll::after{ opacity:1; }
@@ -229,7 +261,10 @@
           <span><span class="score-figure" id="oppScoreFigure"></span><span class="score-overs" id="oppScoreOvers"></span></span>
         </div>
       </div>
-      <div class="match-result" id="matchResult"></div>
+      <div class="match-result-row">
+        <div class="match-result" id="matchResult"></div>
+        <img class="pc-logo" id="pcLogo" src="img/play-cricket-logo-white.png" alt="Play-Cricket" style="display:none;" onerror="this.style.display='none';">
+      </div>
     </div>
 
     <div id="tablesSection">
@@ -255,8 +290,6 @@
     </div>
 
     <div id="noScorecardNote" class="note" style="display:none;">No scorecard is available for this match.</div>
-
-    <div class="note">Only our own side's batting and bowling are shown — no match report, no opposition scorecard, per design decision. Strike rate, bowling average and economy are computed from the stored figures, not stored directly.</div>
   </div>
 
 </div>
@@ -295,6 +328,7 @@ function renderHeader(match, usInnings, oppInnings){
   document.getElementById('matchMeta').textContent =
     [formatDate(match.match_date), match.home_or_away === 'H' ? 'Home' : 'Away',
      match.competition_type, match.competition_name].filter(Boolean).join(' · ');
+  document.getElementById('pcLogo').style.display = match.source === 'playcricket' ? 'block' : 'none';
 
   document.getElementById('usScoreTeam').textContent = ourName;
   document.getElementById('oppScoreTeam').textContent = match.opposition_name;
@@ -352,14 +386,14 @@ function renderBatting(batting, extras, teamTotal){
     ? `<tr class="extras-row"><td class="name">Extras</td><td class="how-out extras-detail">${extrasParts}</td><td colspan="4"></td><td>${extras.total_extras}</td></tr>`
     : '';
   const totalRow = teamTotal.runs != null
-    ? `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs} overs</td><td colspan="4"></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`
+    ? `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs != null ? `${teamTotal.overs} overs` : ''}</td><td colspan="4"></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`
     : '';
   document.getElementById("battingBody").innerHTML = rows + extrasRow + totalRow;
 }
 
-function renderBowling(bowling){
+function renderBowling(bowling, oppInnings){
   document.getElementById("bowlingHead").innerHTML = bowlingCols.map(c => `<th>${c.label}</th>`).join("");
-  document.getElementById("bowlingBody").innerHTML = bowling.map(r => {
+  const rows = bowling.map(r => {
     const actualOvers = oversToBalls(r.overs) / 6;
     const econ = (r.runs / actualOvers).toFixed(1);
     const avg = r.wkts > 0 ? (r.runs / r.wkts).toFixed(1) : "-";
@@ -373,6 +407,26 @@ function renderBowling(bowling){
       <td>${econ}</td>
     </tr>`;
   }).join("");
+
+  // Wides/no-balls are already included in the bowler they were bowled
+  // against (his own runs-conceded figure) - only byes/leg-byes/penalty runs
+  // are nobody's figure, so that's the portion that needs its own row for
+  // the R column to sum to the innings total (matches the header score).
+  const nonBowlerExtras = oppInnings.total_extras != null
+    ? oppInnings.total_extras - (oppInnings.extra_wides || 0) - (oppInnings.extra_no_balls || 0) - (oppInnings.extra_penalty_runs || 0)
+    : null;
+  const extrasParts = [
+    oppInnings.extra_byes ? `${oppInnings.extra_byes}b` : null,
+    oppInnings.extra_leg_byes ? `${oppInnings.extra_leg_byes}lb` : null,
+    oppInnings.extra_penalty_runs ? `${oppInnings.extra_penalty_runs}pen` : null,
+  ].filter(Boolean).join(" ");
+  const extrasRow = nonBowlerExtras != null
+    ? `<tr class="extras-row"><td class="name">Extras</td><td colspan="2" class="extras-detail" style="text-align:left">${extrasParts}</td><td>${nonBowlerExtras}</td><td colspan="3"></td></tr>`
+    : '';
+  const totalRow = oppInnings.runs != null
+    ? `<tr class="total-row"><td class="name">Total</td><td>${oppInnings.overs != null ? `${oppInnings.overs} overs` : ''}</td><td></td><td>${oppInnings.runs}</td><td>${oppInnings.wickets}</td><td colspan="2"></td></tr>`
+    : '';
+  document.getElementById("bowlingBody").innerHTML = rows + extrasRow + totalRow;
 }
 
 function showMessage(text){
@@ -434,7 +488,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   }
 
   renderBatting(batting, usInnings, { runs: usInnings.runs, wkts: usInnings.wickets, overs: usInnings.overs });
-  renderBowling(bowling);
+  renderBowling(bowling, oppInnings);
   initScrollHint(document.getElementById('battingScroll'));
   initScrollHint(document.getElementById('bowlingScroll'));
 })();

@@ -148,8 +148,12 @@
     for (const r of filtered) {
       let e = byPlayer.get(r.player_id);
       if (!e) {
+        // bestWkts starts below any real wicket count (not 0) so a bowler
+        // who never takes a wicket still has their best (most economical)
+        // wicketless spell recorded, e.g. "0-20" - not stuck at a fake "0-0"
+        // that no real 0-wicket, 0-run-conceded innings could ever beat.
         e = { name: r.name, matches: new Set(), balls: 0, mdns: 0, runs: 0, wkts: 0,
-          bestWkts: 0, bestRuns: 0, fivew: 0 };
+          bestWkts: -1, bestRuns: Infinity, fivew: 0 };
         byPlayer.set(r.player_id, e);
       }
       e.matches.add(r.match_id);
@@ -330,8 +334,12 @@
     for (const r of filtered) {
       let e = bySeason.get(r.season);
       if (!e) {
+        // bestWkts starts below any real wicket count (not 0) so a bowler
+        // who never takes a wicket still has their best (most economical)
+        // wicketless spell recorded, e.g. "0-20" - not stuck at a fake "0-0"
+        // that no real 0-wicket, 0-run-conceded innings could ever beat.
         e = { season: r.season, matches: new Set(), balls: 0, mdns: 0, runs: 0, wkts: 0,
-          bestWkts: 0, bestRuns: 0, fivew: 0 };
+          bestWkts: -1, bestRuns: Infinity, fivew: 0 };
         bySeason.set(r.season, e);
       }
       e.matches.add(r.match_id);
