@@ -79,6 +79,13 @@
     color-scheme: dark;
   }
   :root[data-theme="light"]{ color-scheme: light; }
+  /* Reserves the scrollbar gutter always, whether or not the page is tall
+     enough to need it - otherwise .page's centering shifts a few pixels
+     depending on content height (e.g. Stats before/after a search returns
+     results, or between pages with very different row counts), which reads
+     as "the container is a different width" even though max-width is the
+     same everywhere. */
+  html{ scrollbar-gutter: stable; }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   /* ============ MOBILE-FIRST BASE STYLES ============ */
@@ -155,7 +162,8 @@
      Play-Cricket API (not historic/scraped ones). The onerror handler on the
      <img> itself hides it cleanly if the file's ever missing, rather than
      showing a broken-image icon. */
-  .pc-logo{ display:block; height: 20px; width:auto; flex-shrink:0; }
+  .pc-logo-link{ flex-shrink:0; }
+  .pc-logo{ display:block; height: 20px; width:auto; }
   @media (min-width: 640px){ .pc-logo{ height: 25px; } }
 
   .result-pill{
@@ -198,6 +206,8 @@
   tbody tr:last-child td{ border-bottom: none; }
   tbody tr:nth-child(even){ background: var(--row-even); }
   td.name{ font-weight: 500; }
+  a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
+  a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline, var(--accent)); }
   thead th.how-out{ text-align:left; }
   td.how-out{ text-align:left; color: var(--ink-soft); }
   .not-out{ color: var(--accent); font-weight: 600; }
@@ -269,7 +279,9 @@
       </div>
       <div class="match-result-row">
         <div class="match-result" id="matchResult"></div>
-        <img class="pc-logo" id="pcLogo" src="img/play-cricket-logo-white.png" alt="Play-Cricket" style="display:none;" onerror="this.style.display='none';">
+        <a class="pc-logo-link" id="pcLogoLink" target="_blank" rel="noopener noreferrer" style="display:none;">
+          <img class="pc-logo" src="img/play-cricket-logo-white.png" alt="Play-Cricket" onerror="document.getElementById('pcLogoLink').style.display='none';">
+        </a>
       </div>
     </div>
 
@@ -329,12 +341,19 @@ const bowlingCols = [
 
 function renderHeader(match, usInnings, oppInnings){
   const ourName = `Barwell CC ${match.team_name}`;
+  document.title = `Fixtures - ${ourName} v ${match.opposition_name}`;
   document.getElementById('matchTeams').innerHTML =
     `${ourName} <span class="vs">v</span> ${match.opposition_name}`;
   document.getElementById('matchMeta').textContent =
     [formatDate(match.match_date), match.home_or_away === 'H' ? 'Home' : 'Away',
      match.competition_type, match.competition_name].filter(Boolean).join(' · ');
-  document.getElementById('pcLogo').style.display = match.source === 'playcricket' ? 'block' : 'none';
+  const pcLogoLink = document.getElementById('pcLogoLink');
+  if (match.playCricketUrl) {
+    pcLogoLink.href = match.playCricketUrl;
+    pcLogoLink.style.display = 'block';
+  } else {
+    pcLogoLink.style.display = 'none';
+  }
 
   document.getElementById('usScoreTeam').textContent = ourName;
   document.getElementById('oppScoreTeam').textContent = match.opposition_name;
@@ -370,7 +389,7 @@ function renderBatting(batting, extras, teamTotal){
     const sr = (r.balls != null && r.balls > 0) ? ((r.runs / r.balls) * 100).toFixed(1) : "";
     const runsCell = notOut ? `${r.runs}<span class="not-out">*</span>` : r.runs;
     return `<tr class="${dnb ? 'dnb' : ''}">
-      <td class="name">${r.name}</td>
+      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a></td>
       <td class="how-out">${howOut}</td>
       <td>${dnb ? '' : runsCell}</td>
       <td>${r.balls ?? ''}</td>
@@ -404,7 +423,7 @@ function renderBowling(bowling, oppInnings){
     const econ = (r.runs / actualOvers).toFixed(1);
     const avg = r.wkts > 0 ? (r.runs / r.wkts).toFixed(1) : "-";
     return `<tr>
-      <td class="name">${r.name}</td>
+      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a></td>
       <td>${r.overs}</td>
       <td>${r.maidens}</td>
       <td>${r.runs}</td>

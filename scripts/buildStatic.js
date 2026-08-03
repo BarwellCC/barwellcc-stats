@@ -103,6 +103,14 @@ function buildScorecards(db) {
     const usInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 1').get(match.id);
     const oppInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 0').get(match.id);
     match.resultSummary = describeResult(match.result, usInnings, oppInnings);
+    // Link out to the match's result/scorecard page on the club's own
+    // Play-Cricket site, for matches synced via the API (historic/scraped
+    // matches have no play_cricket_match_id, hence no such page to link to).
+    // /website/results/{id} (not /match_details?id={id}, which is just the
+    // bare fixture metadata, no scorecard).
+    match.playCricketUrl = match.play_cricket_match_id
+      ? `https://barwell.play-cricket.com/website/results/${match.play_cricket_match_id}`
+      : null;
     const publicId = publicMatchId(match);
     match.id = publicId;
     delete match.play_cricket_match_id;

@@ -79,6 +79,13 @@
     color-scheme: dark;
   }
   :root[data-theme="light"]{ color-scheme: light; }
+  /* Reserves the scrollbar gutter always, whether or not the page is tall
+     enough to need it - otherwise .page's centering shifts a few pixels
+     depending on content height (e.g. Stats before/after a search returns
+     results, or between pages with very different row counts), which reads
+     as "the container is a different width" even though max-width is the
+     same everywhere. */
+  html{ scrollbar-gutter: stable; }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   /* ============ MOBILE-FIRST BASE STYLES ============ */
@@ -127,6 +134,17 @@
   }
   .tab:hover{ border-color: var(--pitch-green); color: var(--pitch-green); }
   .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
+  /* Dark mode: brighten to match Stats' tab treatment (its --pitch-green is
+     already brightened there since it's also used as text/border on that
+     page - here it's solid-fill only, so override just these two rules
+     instead of the shared variable, which would also lighten the header
+     gradient/nav unintentionally). */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .tab:hover{ border-color: #5B9BD5; color: #5B9BD5; }
+    :root:not([data-theme="light"]) .tab.active{ background: #5B9BD5; border-color: #5B9BD5; }
+  }
+  :root[data-theme="dark"] .tab:hover{ border-color: #5B9BD5; color: #5B9BD5; }
+  :root[data-theme="dark"] .tab.active{ background: #5B9BD5; border-color: #5B9BD5; }
 
   /* ---- White card housing the filter dropdowns (same as Stats' search-card) ---- */
   .search-card{

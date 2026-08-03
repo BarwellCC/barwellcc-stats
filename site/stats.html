@@ -84,6 +84,13 @@
     color-scheme: dark;
   }
   :root[data-theme="light"]{ color-scheme: light; }
+  /* Reserves the scrollbar gutter always, whether or not the page is tall
+     enough to need it - otherwise .page's centering shifts a few pixels
+     depending on content height (e.g. Stats before/after a search returns
+     results, or between pages with very different row counts), which reads
+     as "the container is a different width" even though max-width is the
+     same everywhere. */
+  html{ scrollbar-gutter: stable; }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   /* ============ MOBILE-FIRST BASE STYLES ============ */
