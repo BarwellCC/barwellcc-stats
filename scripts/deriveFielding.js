@@ -54,7 +54,7 @@ function deriveFielding(db) {
 
   const rebuild = db.transaction(() => {
     // Scoped to playcricket-sourced matches only - historic matches' fielding
-    // figures come directly from the Hitssports export (see
+    // figures come directly from the historic xlsx export (see
     // scripts/insertScrapedMatch.js), not from this derivation, and an
     // unscoped DELETE here would wipe them out again on every nightly sync.
     db.exec(

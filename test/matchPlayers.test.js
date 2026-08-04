@@ -1,8 +1,8 @@
 const assert = require('assert');
 const { matchPlayers } = require('../scripts/matchPlayersCore');
 
-// Real first/surnames from Barwell's actual 2026 Hitssports export.
-const hitssportsNames = [
+// Real first/surnames from Barwell's actual 2026 xlsx export.
+const xlsxNames = [
   { firstName: 'Tommy', surname: 'Wright' },
   { firstName: 'Darren', surname: 'Roach' },
   { firstName: 'Danny', surname: 'Moran' },
@@ -37,9 +37,9 @@ const pcPlayers = [
   { id: 12, name: 'Craig Trapp', play_cricket_id: 112 }, // typo vs "Trapps"
 ];
 
-const results = matchPlayers(hitssportsNames, pcPlayers);
+const results = matchPlayers(xlsxNames, pcPlayers);
 const byName = (first, sur) =>
-  results.find((r) => r.hitssports.firstName === first && r.hitssports.surname === sur);
+  results.find((r) => r.source.firstName === first && r.source.surname === sur);
 
 function expectTopMatch(first, sur, matchType, expectedName) {
   const r = byName(first, sur);

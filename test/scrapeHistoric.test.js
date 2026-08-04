@@ -158,7 +158,7 @@ const db = openDb();
 const tomWrightId = db.prepare('INSERT INTO players (name) VALUES (?)').run('Tom Wright').lastInsertRowid;
 db.prepare(
   `INSERT INTO player_aliases (player_id, alias_name, source, match_type, confidence, confirmed)
-   VALUES (?, 'Kyle Chamberlain', 'hitssports', 'exact', 1, 1)`
+   VALUES (?, 'Kyle Chamberlain', 'xlsx_export', 'exact', 1, 1)`
 ).run(tomWrightId); // reusing this row just to prove alias resolution wins over a fresh player
 
 const record = {

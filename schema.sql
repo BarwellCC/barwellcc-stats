@@ -1,6 +1,6 @@
 -- Barwell CC unified stats database
 -- Holds both Play-Cricket-sourced matches (2026 onwards) and imported historic
--- matches (2009-2026, from the Hitssports export), in one shared shape so stats
+-- matches (2009-2026, from the historic xlsx export), in one shared shape so stats
 -- queries don't need to care which system a match originally came from.
 
 PRAGMA foreign_keys = ON;
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS bowling_performances (
 
 -- Catches/stumpings/run-outs, derived from batting_performances.fielder_name
 -- where possible (Play-Cricket data), or loaded directly from the historic
--- fielding export if Hitssports provides one.
+-- fielding export if the historic xlsx source provides one.
 CREATE TABLE IF NOT EXISTS fielding_performances (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -103,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_batting_player ON batting_performances(player_id)
 CREATE INDEX IF NOT EXISTS idx_bowling_player ON bowling_performances(player_id);
 CREATE INDEX IF NOT EXISTS idx_innings_match ON innings(match_id);
 
--- Maps a name as it appears in an external source (currently just Hitssports)
+-- Maps a name as it appears in an external source (currently just the historic xlsx export)
 -- onto the canonical player row it refers to. Built by scripts/matchPlayers.js:
 -- exact name matches are recorded automatically; anything less certain (a
 -- nickname, a likely typo, two similarly-spelled surnames) is written here
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS player_aliases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id INTEGER NOT NULL REFERENCES players(id),
   alias_name TEXT NOT NULL,       -- the raw "FirstName Surname" as it appears in the source
-  source TEXT NOT NULL,           -- 'hitssports'
+  source TEXT NOT NULL,           -- 'xlsx_export'
   match_type TEXT NOT NULL,       -- 'exact' | 'nickname' | 'fuzzy'
   confidence REAL,                -- 0-1, for fuzzy matches
   confirmed INTEGER NOT NULL DEFAULT 0,

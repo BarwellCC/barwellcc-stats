@@ -1,7 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const { openDb } = require('./db');
-const { readDistinctPlayerNamesFromFiles } = require('./readHitssportsNames');
+const { readDistinctPlayerNamesFromFiles } = require('./readXlsxNames');
 const { matchPlayers } = require('./matchPlayersCore');
 
 const args = process.argv.slice(2);
@@ -27,11 +27,11 @@ function main() {
     );
   }
 
-  const hsNames = readDistinctPlayerNamesFromFiles(xlsxPaths.map((p) => path.resolve(p)));
-  console.log(`Read ${hsNames.length} distinct Hitssports player names from ${xlsxPaths.length} file(s).`);
+  const xlsxNames = readDistinctPlayerNamesFromFiles(xlsxPaths.map((p) => path.resolve(p)));
+  console.log(`Read ${xlsxNames.length} distinct player names from ${xlsxPaths.length} xlsx file(s).`);
   console.log(`Comparing against ${pcPlayers.length} known Play-Cricket players.\n`);
 
-  const results = matchPlayers(hsNames, pcPlayers);
+  const results = matchPlayers(xlsxNames, pcPlayers);
 
   const exact = results.filter((r) => r.matchType === 'exact');
   const nickname = results.filter((r) => r.matchType === 'nickname');
@@ -46,7 +46,7 @@ function main() {
   if (nickname.length || fuzzy.length) {
     console.log('=== Needs your confirmation ===');
     for (const r of [...nickname, ...fuzzy]) {
-      console.log(`\n"${r.hitssports.firstName} ${r.hitssports.surname}" (Hitssports) could be:`);
+      console.log(`\n"${r.source.firstName} ${r.source.surname}" could be:`);
       r.candidates.forEach((c, i) => {
         console.log(`  ${i + 1}. ${c.name}  (confidence ${c.confidence}) - ${c.reason}`);
       });
@@ -57,7 +57,7 @@ function main() {
   if (none.length) {
     console.log('=== No Play-Cricket record found (check spelling, or these may be genuinely historic-only players) ===');
     for (const r of none) {
-      console.log(`  ${r.hitssports.firstName} ${r.hitssports.surname}`);
+      console.log(`  ${r.source.firstName} ${r.source.surname}`);
     }
     console.log('');
   }
@@ -70,7 +70,7 @@ function main() {
 
   const insertAlias = db.prepare(
     `INSERT INTO player_aliases (player_id, alias_name, source, match_type, confidence, confirmed)
-     VALUES (@player_id, @alias_name, 'hitssports', @match_type, @confidence, @confirmed)
+     VALUES (@player_id, @alias_name, 'xlsx_export', @match_type, @confidence, @confirmed)
      ON CONFLICT(alias_name, source) DO UPDATE SET
        player_id=excluded.player_id, match_type=excluded.match_type, confidence=excluded.confidence`
   );
@@ -79,7 +79,7 @@ function main() {
   for (const r of exact) {
     insertAlias.run({
       player_id: r.candidates[0].id,
-      alias_name: `${r.hitssports.firstName} ${r.hitssports.surname}`,
+      alias_name: `${r.source.firstName} ${r.source.surname}`,
       match_type: 'exact',
       confidence: 1,
       confirmed: 1,
@@ -90,7 +90,7 @@ function main() {
     // Only record the top candidate as a pending suggestion; still unconfirmed.
     insertAlias.run({
       player_id: r.candidates[0].id,
-      alias_name: `${r.hitssports.firstName} ${r.hitssports.surname}`,
+      alias_name: `${r.source.firstName} ${r.source.surname}`,
       match_type: r.matchType,
       confidence: r.candidates[0].confidence,
       confirmed: 0,

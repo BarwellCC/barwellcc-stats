@@ -1,6 +1,6 @@
 // Small date/time parsing helpers shared by the historic-data scraper
 // (scripts/scrapeAllHistoric.js, scripts/parseScorecardPage.js) - both the
-// club's live site and its old Hitssports xlsx exports used this same
+// club's live site and its old historic xlsx exports used this same
 // "13 Apr 2025" / "1pm" style formatting.
 
 const MONTHS = {

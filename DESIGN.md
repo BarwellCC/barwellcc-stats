@@ -119,7 +119,7 @@ visit. Implementation:
 - **Single-select pick list** (`.pick`, in `fixtures-refresh.html` only):
   plain native `<select>` styled to match, for Team and Season specifically
   (not Competition, which is the multi-select above). Fixtures is inherently
-  one-team-at-a-time (mirrors the old Hitssports fixtures page, which is
+  one-team-at-a-time (mirrors the old live-site fixtures page, which is
   per-team by URL), so the multi-select's checkboxes/Select all/Clear chrome
   was unnecessary complexity for those two fields.
 - **Filter row left/right split**: on desktop, the Team + Competition filters
@@ -170,7 +170,7 @@ phone through desktop cleanly so far.
   team switching works elsewhere on the site (Fixtures already diverged —
   see single-select pick list above).
 - Fixtures page result column shows a W/L/T pill + "our score v their score"
-  rather than copying Hitssports' prose ("Won by 14 Runs") — the schema
+  rather than copying the live site's prose ("Won by 14 Runs") — the schema
   captures scores accurately (see result-flip fix) but not win margin, so this
   reads better than a description we can't fully back with real data yet.
 - Kick-off time isn't in `schema.sql`/`matches` yet — Play-Cricket's fixture

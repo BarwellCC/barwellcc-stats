@@ -12,14 +12,14 @@ function findExistingMatchId(db, match) {
   return row ? row.id : null;
 }
 
-// A confirmed player_aliases row (source='hitssports', from
+// A confirmed player_aliases row (source='xlsx_export', from
 // npm run match-players) wins over a fresh exact-name lookup, so "Tommy
 // Wright" (scraped) resolves to the same player as "Tom Wright"
 // (Play-Cricket), not a duplicate.
 function resolvePlayerId(db, playerName) {
   if (!playerName) return null;
   const alias = db
-    .prepare(`SELECT player_id FROM player_aliases WHERE alias_name = ? AND source = 'hitssports' AND confirmed = 1`)
+    .prepare(`SELECT player_id FROM player_aliases WHERE alias_name = ? AND source = 'xlsx_export' AND confirmed = 1`)
     .get(playerName);
   if (alias) return alias.player_id;
   return getOrCreatePlayer(db, playerName, null);

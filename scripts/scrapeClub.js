@@ -1,5 +1,5 @@
-// Low-level fetch layer for barwellcc.co.uk (the club's own live Hitssports
-// site) - no parsing here, see scripts/parseFixtureListPage.js and
+// Low-level fetch layer for barwellcc.co.uk (the club's own live site) - no
+// parsing here, see scripts/parseFixtureListPage.js and
 // scripts/parseScorecardPage.js for that. Kept separate so the parsers stay
 // pure/unit-testable against saved HTML with no network involved.
 //

@@ -1,5 +1,5 @@
 // Scrapes every historic (pre-Play-Cricket) season directly from the club's
-// own live site (barwellcc.co.uk) instead of relying on the Hitssports xlsx
+// own live site (barwellcc.co.uk) instead of relying on the historic xlsx
 // exports - the site's scorecard pages have real results, real team totals
 // (with extras), and real dismissal types that the xlsx exports don't (see
 // README.md's "Importing historic seasons via the live site" section for the

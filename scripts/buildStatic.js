@@ -28,7 +28,7 @@ function writeJson(relPath, data) {
 // scorecard URL built from it could silently start pointing at a different
 // match after the next nightly sync. play_cricket_match_id is permanent,
 // assigned once by Play-Cricket itself, so use that whenever we have it.
-// Historic (Hitssports) matches, once imported, won't have one - fall back
+// Historic matches, once imported, won't have one - fall back
 // to a slug built from fields that are fixed for a given real fixture (a
 // team can't play the same opponent twice on the same day), so it stays
 // stable as long as the imported source data itself doesn't change.
@@ -70,7 +70,7 @@ function buildMatches(db) {
       comp: r.competition_type,
       result: r.result,
       resultSummary: describeResult(r.result, usInnings, oppInnings),
-      // Historic matches never carry a result (the Hitssports exports don't
+      // Historic matches never carry a result (the historic xlsx exports don't
       // have one - see scripts/parseScorecardPage.js), but they did happen,
       // unlike a genuinely upcoming Play-Cricket fixture with no result yet -
       // the frontend needs to tell those two "no result" cases apart rather

@@ -2,7 +2,7 @@
 // (https://barwellcc.co.uk/scorecard/fixtureID_<id>/default.aspx) into the
 // same {match, innings} shape scripts/parseMatchDetail.js produces for
 // Play-Cricket data - real result, real team totals (with extras), real
-// dismissal types, not the reduced runs-only data the Hitssports xlsx export
+// dismissal types, not the reduced runs-only data the historic xlsx export
 // gives. Pure function, no network - see scripts/scrapeClub.js for the fetch
 // layer and README.md's "Importing historic seasons via the live site"
 // section for the full page-structure writeup.
@@ -17,7 +17,7 @@
 // is needed here (unlike bowling_performances/fielder_name elsewhere).
 // Individual opposition batting/bowling is essentially never recorded (the
 // club only scores its own players in detail) - those tables just come back
-// empty, which is fine, same as the Hitssports xlsx historic import.
+// empty, which is fine, same as the historic xlsx import.
 
 const cheerio = require('cheerio');
 const { clean } = require('./normalizeName');

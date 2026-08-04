@@ -19,13 +19,13 @@ function clean(str) {
 const FUZZY_SURNAME_THRESHOLD = 0.72; // same first name, similar-ish surname (typo)
 const FUZZY_FIRSTNAME_THRESHOLD = 0.6; // same surname, similar-ish first name (not a known nickname)
 
-function matchOnePlayer(hs, pcPlayersWithParts) {
-  const hsFirst = normalize(hs.firstName);
-  const hsSurname = normalize(hs.surname);
-  const hsNickFirst = canonicalFirstName(hs.firstName);
+function matchOnePlayer(entry, pcPlayersWithParts) {
+  const entryFirst = normalize(entry.firstName);
+  const entrySurname = normalize(entry.surname);
+  const entryNickFirst = canonicalFirstName(entry.firstName);
 
   const exact = pcPlayersWithParts.filter(
-    (pc) => normalize(pc.firstName) === hsFirst && normalize(pc.surname) === hsSurname
+    (pc) => normalize(pc.firstName) === entryFirst && normalize(pc.surname) === entrySurname
   );
   if (exact.length > 0) {
     return {
@@ -35,7 +35,7 @@ function matchOnePlayer(hs, pcPlayersWithParts) {
   }
 
   const nicknameMatches = pcPlayersWithParts.filter(
-    (pc) => canonicalFirstName(pc.firstName) === hsNickFirst && normalize(pc.surname) === hsSurname
+    (pc) => canonicalFirstName(pc.firstName) === entryNickFirst && normalize(pc.surname) === entrySurname
   );
   if (nicknameMatches.length > 0) {
     return {
@@ -43,23 +43,23 @@ function matchOnePlayer(hs, pcPlayersWithParts) {
       candidates: nicknameMatches.map((pc) => ({
         ...pc.player,
         confidence: 0.9,
-        reason: `"${hs.firstName}" / "${pc.firstName}" are a known nickname pair, same surname`,
+        reason: `"${entry.firstName}" / "${pc.firstName}" are a known nickname pair, same surname`,
       })),
     };
   }
 
   // Same surname, first name similar-but-not-identical (covers unlisted nicknames,
   // minor misspellings like "Danial" vs "Daniel").
-  const sameSurname = pcPlayersWithParts.filter((pc) => normalize(pc.surname) === hsSurname);
+  const sameSurname = pcPlayersWithParts.filter((pc) => normalize(pc.surname) === entrySurname);
   const firstNameFuzzy = sameSurname
-    .map((pc) => ({ pc, score: similarity(normalize(pc.firstName), hsFirst) }))
+    .map((pc) => ({ pc, score: similarity(normalize(pc.firstName), entryFirst) }))
     .filter((x) => x.score >= FUZZY_FIRSTNAME_THRESHOLD)
     .sort((a, b) => b.score - a.score);
 
   // Same first name, surname similar-but-not-identical (covers surname typos).
-  const sameFirst = pcPlayersWithParts.filter((pc) => normalize(pc.firstName) === hsFirst);
+  const sameFirst = pcPlayersWithParts.filter((pc) => normalize(pc.firstName) === entryFirst);
   const surnameFuzzy = sameFirst
-    .map((pc) => ({ pc, score: similarity(normalize(pc.surname), hsSurname) }))
+    .map((pc) => ({ pc, score: similarity(normalize(pc.surname), entrySurname) }))
     .filter((x) => x.score >= FUZZY_SURNAME_THRESHOLD)
     .sort((a, b) => b.score - a.score);
 
@@ -78,7 +78,7 @@ function matchOnePlayer(hs, pcPlayersWithParts) {
         .map(({ pc, score }) => ({
           ...pc.player,
           confidence: Math.round(score * 100) / 100,
-          reason: `similar name: "${hs.firstName} ${hs.surname}" vs "${pc.firstName} ${pc.surname}"`,
+          reason: `similar name: "${entry.firstName} ${entry.surname}" vs "${pc.firstName} ${pc.surname}"`,
         })),
     };
   }
@@ -86,17 +86,17 @@ function matchOnePlayer(hs, pcPlayersWithParts) {
   return { matchType: 'none', candidates: [] };
 }
 
-// hitssportsNames: [{firstName, surname}]
+// sourceNames: [{firstName, surname}] - names as they appear in the external source
 // pcPlayers: [{id, name, play_cricket_id}] - as stored in the players table
-function matchPlayers(hitssportsNames, pcPlayers) {
+function matchPlayers(sourceNames, pcPlayers) {
   const pcPlayersWithParts = pcPlayers.map((player) => ({
     player,
     ...splitPlayCricketName(player.name),
   }));
 
-  return hitssportsNames.map((hs) => ({
-    hitssports: hs,
-    ...matchOnePlayer(hs, pcPlayersWithParts),
+  return sourceNames.map((entry) => ({
+    source: entry,
+    ...matchOnePlayer(entry, pcPlayersWithParts),
   }));
 }
 
