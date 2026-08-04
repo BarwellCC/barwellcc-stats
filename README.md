@@ -1,498 +1,240 @@
-# Barwell CC unified stats site — build log
+# Barwell CC Stats Site
 
-## What's working so far
+Live at **https://stats.barwellcc.co.uk** (also reachable at
+`https://barwellcc.github.io/barwellcc-stats/`). A fully static site — no
+live backend — serving Fixtures, Scorecards, Averages and Stats for Barwell
+Cricket Club. Built from a SQLite database populated nightly from the
+Play-Cricket API, plus a one-off scrape of the club's own site for historic
+seasons (2009–2025).
 
-- **`schema.sql`** — one database for both Play-Cricket-era and historic (Hitssports)
-  matches: `matches`, `innings`, `batting_performances`, `bowling_performances`,
-  `fielding_performances`, `players`.
-- **`scripts/parseMatchDetail.js`** — converts a raw Play-Cricket `match_detail`
-  API response into rows matching the schema. Pure function, no network/DB.
-- **`scripts/insertMatch.js`** — writes a parsed match into SQLite. Safe to run
-  repeatedly on the same match (updates in place rather than duplicating), which
-  matters because the nightly sync will re-fetch recently-changed matches.
-- **`scripts/db.js`** — SQLite connection + player lookup/creation, matching
-  players across matches (and eventually across historic + Play-Cricket data)
-  by name, with Play-Cricket's own player IDs used as a stronger match when
-  available.
-- **`scripts/sync-playcricket.js`** — the actual nightly job: fetches the
-  season's fixture list, pulls a full scorecard for every match with a result,
-  and stores it.
-- **`scripts/matchPlayers.js`** — reconciles Hitssports player names against
-  known Play-Cricket players (see "Player matching" below).
-- **`scripts/deriveFielding.js`** — rebuilds `fielding_performances`
-  (catches/stumpings/run-outs) from `batting_performances.fielder_name`,
-  since Play-Cricket doesn't give fielding figures directly. Runs
-  automatically at the end of `npm run sync`; `npm run derive-fielding` runs
-  it standalone. See the gotchas in "Running the real site locally" below.
-- **`site/js/cricket-calc.js`** — every cricket-specific calculation the site
-  needs (batting/bowling averages, the per-innings search, the "Won by N
-  wickets/runs" wording), as plain dependency-free functions that take
-  already-flattened row arrays. Loaded as a `<script>` tag by every page and
-  run **in the browser** — the site has no backend at request time, so
-  there's exactly one implementation of these rules, not a server copy and
-  a client copy that could drift apart.
+## Architecture
+
+- **`schema.sql`** — one database for both Play-Cricket-era and historic
+  matches: `matches`, `innings`, `batting_performances`,
+  `bowling_performances`, `fielding_performances`, `players`,
+  `player_aliases`.
+- **`scripts/sync-playcricket.js`** (`npm run sync`) — the nightly job:
+  fetches the season's fixture list, pulls a full scorecard for every
+  completed match, and stores it. Idempotent — safe to re-run on the same
+  match.
+- **`scripts/deriveFielding.js`** (`npm run derive-fielding`) — rebuilds
+  `fielding_performances` (catches/stumpings/run-outs) from
+  `batting_performances.fielder_name`, since Play-Cricket doesn't give
+  fielding figures directly. Runs automatically at the end of `npm run sync`.
 - **`scripts/buildStatic.js`** (`npm run build-static`) — the only thing
-  that still queries `data/barwellcc.db` directly. Dumps everything the
-  site needs into plain JSON under `site/data/` (matches, one scorecard per
-  played match, flat batting/bowling/fielding rows, the real-player list),
-  which the pages fetch once and hand to `cricket-calc.js`. Runs
-  automatically as part of `npm run dev` and at the end of the nightly
-  GitHub Action (see "Hosting" below).
-- **`scripts/scrapeClub.js`/`scripts/parseFixtureListPage.js`/
-  `scripts/parseScorecardPage.js`/`scripts/insertScrapedMatch.js`/
-  `scripts/scrapeAllHistoric.js`** (`npm run scrape-historic`) — scrapes every
-  historic (pre-Play-Cricket) season directly from the club's own live site
-  (barwellcc.co.uk), which turns out to have full scorecards - real results,
-  real team totals with extras, real dismissal types - not just the
-  runs-only figures a Hitssports xlsx export gives. Covers 2009-2025 across
-  all 6 adult teams.
-- **`scripts/dumpHistoricScraped.js`/`scripts/loadHistoricScraped.js`**
-  (`npm run dump-historic`/`npm run load-historic`) — the scraped historic
-  data is checked into the repo as `historic-data/scraped-matches.json`
-  (a portable dump, produced by `dump-historic`) rather than re-scraped on
-  every build; `load-historic` loads that dump into the DB quickly with no
-  network calls, which is what every build (including the nightly GitHub
-  Action) actually runs. See "Importing historic seasons via the live site"
-  below for the full reasoning and how to backfill/refresh a season.
-- **`test/`** — an end-to-end test using the real sample payload from
-  Play-Cricket's own API documentation, a player-matching test built from
-  Barwell's actual 2026 Hitssports export names, a fielding-derivation test
-  covering the is_us join-direction gotcha, a result-margin test covering
-  the `innings_number` gotcha, a build-static test that runs the whole
-  static-export pipeline end to end, and a scraper test (built from two real
-  saved scorecard pages, one 2026 and one 2009) covering the fixture-list/
-  scorecard HTML parsing, the "did not bat" detection, and re-scrape
-  idempotency. Run all of them with `npm test`. All checks currently pass.
-- **`mockups/averages-refresh.html`, `mockups/stats-refresh.html`,
-  `mockups/fixtures-refresh.html`, `mockups/scorecard-refresh.html`
-  (+ 3 sibling scorecard mockups)** — visual-refresh designs for the
-  Averages, Stats, Fixtures & Results and Scorecard pages, built from your
-  real data and screenshots of the current Hitssports pages. Mobile-first,
-  sortable columns throughout, sticky name column on wide tables, shared
-  site nav and dark mode across all of them. See `DESIGN.md` for the full
-  token/component reference. These are the preserved design reference —
-  `site/` (see "Running the real site locally" below) is where the actual
-  wired-up pages live now.
+  that queries `data/barwellcc.db` directly. Dumps everything the site needs
+  into plain JSON under `site/data/` (matches, one scorecard per played
+  match, flat batting/bowling/fielding rows, the real-player list).
+- **`site/js/cricket-calc.js`** — every cricket-specific calculation
+  (batting/bowling averages, the per-innings search, the "Won by N
+  wickets/runs" wording), as plain dependency-free functions. Loaded as a
+  `<script>` tag by every page and run **in the browser** — the site has no
+  backend at request time, so there's exactly one implementation of these
+  rules.
+- **`scripts/scrapeClub.js` / `parseFixtureListPage.js` /
+  `parseScorecardPage.js` / `insertScrapedMatch.js` / `scrapeAllHistoric.js`**
+  (`npm run scrape-historic`) — scrapes historic (pre-Play-Cricket) seasons
+  directly from the club's own live site. See "Historic seasons" below.
+- **`scripts/matchPlayers.js`** (`npm run match-players`) — reconciles
+  xlsx-exported player names against known Play-Cricket players. See
+  "Player name matching" below.
+- **`mockups/*.html`** — the approved visual-design reference (see
+  `DESIGN.md`). `site/` is the real, wired-up implementation, kept as
+  separate files from the mockups.
+- **`test/`** — covers Play-Cricket parsing/insert, player matching,
+  fielding derivation, result-margin wording, the static-export pipeline,
+  and the historic scraper (against real saved scorecard pages). Run with
+  `npm test`.
 
-## Player matching (Hitssports ↔ Play-Cricket)
+## Local development
 
-Hitssports exports only have `FirstName`/`Surname` text — no player ID — so
-matching them to Play-Cricket's player records (which do have IDs) has to be
-done by name, carefully. `npm run match-players` compares every distinct name
-in your Hitssports exports against everyone currently in the local database
-(populated by `npm run sync`) and sorts them into:
+```
+npm install
+cp .env.example .env       # fill in PLAY_CRICKET_API_TOKEN / SITE_ID / CLUB_ID
+npm run dev
+```
 
-- **Exact matches** — identical name, applied automatically.
-- **Nickname matches** — e.g. "Tommy Wright" / "Thomas Wright" — flagged for a
-  one-line confirmation, never applied silently.
-- **Fuzzy matches** — similar spelling, e.g. a surname typo — also flagged for
-  confirmation.
-- **No match** — nobody by that name in the Play-Cricket data yet. Usually
-  means a genuinely historic-only player, occasionally a spelling too far off
-  to catch automatically (worth a manual look).
+`npm run dev` loads the historic-data dump, runs `npm run build-static`
+against whatever's in `data/barwellcc.db`, then serves `site/` as static
+files on `http://localhost:4000` — nothing more. **The site has no backend
+at request time**; every page fetches its data from `site/data/*.json` once
+and does all filtering/sorting/aggregation client-side. What you see
+locally is exactly what gets published, not an approximation of it.
+
+If you change `data/barwellcc.db` outside of `npm run dev` (e.g. running
+`npm run sync` in a separate terminal), re-run `npm run build-static` to
+pick it up — the dev server doesn't watch the database.
+
+## Data pipeline
+
+### Current season — Play-Cricket sync
+
+```
+npm run sync -- 2026       # syncs a season
+```
+
+Creates/updates `data/barwellcc.db`. Only senior teams are synced
+(`scripts/teams.js`'s `SENIOR_TEAMS`: 1st/2nd/3rd XI, Midweek XI, Midweek
+2nd XI, Sunday XI) — junior fixtures are filtered out before the extra API
+call that would fetch their full detail.
+
+### Historic seasons (2009–2025) — scraped from the club's live site
+
+Historic scorecards come from scraping `barwellcc.co.uk` directly (an
+ASP.NET RadGrid-based site — see `scripts/parseScorecardPage.js`'s header
+comment for the full structure), not from the club's old xlsx exports,
+since the live site has full scorecards (real results, team totals with
+extras, real dismissal types) where the xlsx exports only gave runs-only
+figures. An earlier xlsx-based importer
+(`parseHistoricSeason.js`/`insertHistoricMatch.js`/`importHistoric.js`/
+`importAllHistoric.js`) was deleted once the scrape proved richer — don't
+recreate it. Covers all 6 senior teams, 2009–2025: 1,221 matches, 0
+fetch/parse errors. (A few team/season combinations genuinely have zero
+fixtures — confirmed as a real gap in the club's own site data, not a
+scraper bug, since it's consistent across every team for the affected
+seasons.)
+
+The scrape itself is a manual/occasional step (~2,500 page fetches, 20–40
+min), not part of the automated build:
+
+```
+npm run scrape-historic                                            # all seasons/teams
+npm run scrape-historic -- --from=2020 --to=2020 --team="1st XI"    # narrower re-scrape
+npm run dump-historic                                               # exports to historic-data/scraped-matches.json
+git add historic-data/scraped-matches.json && git commit
+```
+
+`npm run load-historic` then loads that checked-in JSON dump into the DB —
+fast, no network — and is what every real build actually runs (`npm run
+dev`, and the nightly GitHub Action right after `npm run sync`).
+
+Player identity for historic data reuses the same `player_aliases`
+mechanism as the current season (see below) — a name confirmed once
+applies automatically to historic lookups too (`source='xlsx_export'`).
+Anyone not already covered becomes a new historic-only player.
+
+### Player name matching (xlsx export ↔ Play-Cricket)
+
+The club's old xlsx exports only have `FirstName`/`Surname` text — no
+player ID — so matching them to Play-Cricket's player records has to be
+done by name.
 
 ```
 npm run match-players -- batting-2026.xlsx bowling-2026.xlsx          # dry run, just prints the report
-npm run match-players -- batting-2026.xlsx bowling-2026.xlsx --apply   # also saves it (exact = confirmed, rest = pending)
+npm run match-players -- batting-2026.xlsx bowling-2026.xlsx --apply   # saves it (exact = confirmed, rest = pending)
 ```
 
-I tested the matching logic against Barwell's real 2026 player names (from
-the files you sent) paired with plausible Play-Cricket-style variants —
-nicknames, typos, and three different "Lewis"es that must *not* get confused
-with each other. All of that passes; see `test/matchPlayers.test.js`.
+Sorts every distinct name into:
 
-**A note on the `xlsx` dependency:** the version of this package published on
-npm has two known, unpatched vulnerabilities (SheetJS only ships fixes via
-their own site now, not npm). `package.json` points `xlsx` at SheetJS's own
-patched build directly rather than the npm one - you shouldn't need to do
-anything, but if `npm install` ever complains about that URL, that's why it's
-there.
+- **Exact matches** — applied automatically.
+- **Nickname matches** (e.g. "Tommy Wright" / "Thomas Wright") — flagged for
+  confirmation.
+- **Fuzzy matches** (spelling variants) — flagged for confirmation.
+- **No match** — usually a genuinely historic-only player.
 
-## Importing historic seasons via the live site
+See `test/matchPlayers.test.js` for the matching-logic tests.
 
-First attempt at historic import (see git history around 2026-07-20) used
-the same Hitssports xlsx exports as the current season's player-matching
-files - a batting export, a bowling export, a fixture list - piloted against
-2025. That data turned out to be thin: no match result (W/L/D), no team
-total (runs/wickets/overs/extras), no dismissal method for batting, just
-runs scored and a not-out flag. Before building around that gap, asked the
-user directly whether a richer Hitssports export existed; instead they
-pointed at the club's own live site (`https://barwellcc.co.uk`) and asked
-whether it could be crawled directly instead of relying on exports at all.
+**Note on the `xlsx` dependency:** the npm-published version has two known,
+unpatched vulnerabilities (SheetJS only ships fixes via their own site
+now). `package.json` points `xlsx` at SheetJS's own patched build directly
+instead — nothing to do unless `npm install` complains about that URL.
 
-**It can, and it's much richer.** `https://barwellcc.co.uk/scorecard/fixtureID_<id>/...`
-has a full scorecard for every match back to at least 2009: a result line
-("Barwell Cricket Club Lost by 1 Wicket (14 pts)"), both teams' totals with
-a full extras breakdown, real dismissal types (Bowled/Caught/Stumped/Lbw/Run
-Out/etc, not just runs+not-out), and catches/stumpings/run-outs recorded
-directly on the batter's own row for that match (same convention the xlsx
-export used, just with everything else besides). The xlsx-based importer
-(`scripts/parseHistoricSeason.js`/`insertHistoricMatch.js`/
-`importHistoric.js`/`importAllHistoric.js`, and the `historic-data/2025/`
-xlsx pilot files) has been deleted - the scrape strictly supersedes it, and
-2025 was re-scraped along with every other season rather than left on the
-older, thinner data source.
+## Known behaviors & gotchas
 
-**How the site is structured** (an ASP.NET RadGrid control, consistent back
-to at least 2009 - see `scripts/parseScorecardPage.js`'s header comment for
-the full write-up): a team/season fixture list
-(`/fixtures/teamid_<id>/seasonid_<id>/default.aspx`) gives one row per
-fixture with a `data-fixid` attribute (the scorecard's id) and a result
-`<span class="won|lost|tied|drawn|abandoned">` - reliable enough that the
-result code doesn't need parsing free text. Each scorecard page has one
-`<fieldset>` per innings: a `<legend>` naming the team that batted (its own
-batting table) followed by an `<h3>` naming the *other* team's bowling for
-that innings - already exactly the "bowling_performances belongs to the
-innings, attributed to whoever did NOT bat" shape used everywhere else in
-this project, so no direction-flipping was needed. Individual opposition
-batting/bowling is essentially never recorded (the club only scores its own
-players in detail), which is fine - those tables just come back empty, same
-as the old xlsx source.
-
-**Why a checked-in dump instead of scraping on every build:** unlike
-Play-Cricket (a real API, meant for repeated automated access) or the old
-xlsx importer (instant, no network, safe to re-run nightly), scraping the
-club's own live site is neither instant nor something to repeat needlessly -
-2009-2025 across 6 teams is roughly 2,500 page fetches even with a polite
-350ms delay between requests (see `scripts/scrapeClub.js`), and none of that
-data is going to change. So the scrape is a manual/occasional step, not part
-of the automated build:
-
-```
-npm run scrape-historic                      # scrapes 2009-2025, all 6 adult teams (~20-40 min, be patient)
-npm run scrape-historic -- --from=2020 --to=2020 --team="1st XI"   # narrower re-scrape, e.g. one team/season
-npm run dump-historic                        # exports every source='historic' row to historic-data/scraped-matches.json
-git add historic-data/scraped-matches.json && git commit  # check the refreshed dump in
-```
-
-`npm run load-historic` (`scripts/loadHistoricScraped.js`) then loads that
-JSON dump into the DB - fast, no network - and is what every build actually
-runs (`npm run dev`, and `.github/workflows/deploy.yml` right after
-`npm run sync`), the same way the nightly Action always re-derives the
-current season from Play-Cricket rather than trusting a stale snapshot.
-Re-scraping only needs to happen again if a new season needs backfilling
-(2026 onwards comes from Play-Cricket, not this scraper) or an existing
-historic season's data on the live site changes.
-
-**Player identity** reuses the exact same `player_aliases` mechanism as the
-current season (see "Player matching" above) - a name confirmed once (e.g.
-"Tommy Wright" → "Tom Wright" via `npm run match-players` against the
-current season's xlsx exports) applies automatically to every
-`source='hitssports'` lookup, scraped or not. There's no equivalent
-`match-players` step for scraped names specifically (`scripts/matchPlayers.js`
-only reads xlsx files) - not needed, since anyone not already covered by a
-confirmed alias just becomes a new historic-only player, which is exactly
-the right outcome for someone who never played a Play-Cricket-era match.
-Worth a manual look afterwards (`SELECT name FROM players WHERE
-play_cricket_id IS NULL`) if a name looks like it could be a
-nickname/misspelling of an existing player rather than a genuinely
-different person.
-
-Piloted end-to-end (2009, 1st XI, 22 matches) before running the full
-2009-2025 x 6-team scrape, which completed cleanly: **1,221 matches, 0
-fetch/parse errors.** Checked the real site afterwards across several
-seasons/teams (Fixtures shows real "Won"/"Lost"/"Tied"/"Cancelled" pills and
-margins for historic matches, not just "See scorecard"; Scorecard shows real
-team totals with extras and real dismissal types; Averages/Stats both
-aggregate real historic figures, e.g. 214 real players now show up on Stats'
-player-search dropdown) before treating the whole backfill as done.
-
-A few teams/seasons genuinely have 0 fixtures (e.g. every team in 2010, and
-patchy years for Midweek 2nd XI and Sunday XI in particular) - checked this
-wasn't a scraper bug by confirming it's consistent across multiple teams for
-the same season (a real bug would more likely hit one team, not all of them
-identically), so it looks like a genuine gap in the club's own site data
-rather than something to fix here.
-
-**Senior teams only** - explicit user instruction, applying to the
-Play-Cricket sync too, not just the historic scrape. `scripts/teams.js`
-exports the canonical `SENIOR_TEAMS` list (1st/2nd/3rd XI, Midweek XI,
-Midweek 2nd XI, Sunday XI); `scripts/sync-playcricket.js` now filters on it
-before ever fetching a match's full detail (junior team names are already
-visible on the lightweight `result_summary.json`/`matches.json` fixture
-lists, so junior fixtures get skipped without the extra API call, not just
-filtered out after fetching). The historic scraper was senior-teams-only
-from the start (`scripts/scrapeClub.js`'s `TEAM_IDS` never had a junior team
-in it). Junior-team rows already in the local DB from before this decision
-(Under 11/13/15/17, Girls U11 Dynamos - 46 matches) were deleted directly
-(`DELETE FROM matches WHERE team_name NOT IN (...)`, cascading via the
-schema's `ON DELETE CASCADE` foreign keys) rather than left to expire.
-
-Building the *original* xlsx-based importer had surfaced three bugs in the
-existing static-export pipeline, all still relevant now that scraped
-historic data flows through the same insert path:
-
-1. `scripts/deriveFielding.js` did an unscoped
-   `DELETE FROM fielding_performances` before rebuilding the Play-Cricket
-   derived rows - harmless while only Play-Cricket data existed, but it would
-   have silently wiped every historic-imported fielding row on the very next
-   `npm run sync`. Now scoped to `WHERE match_id IN (SELECT id FROM matches
-   WHERE source = 'playcricket')`.
-2. `scripts/buildStatic.js`'s `buildScorecards()` only included matches
-   `WHERE result IS NOT NULL` - since historic matches never have a result,
-   none of them would have gotten a scorecard file at all. Now also includes
-   any match with innings data (`OR id IN (SELECT match_id FROM innings)`).
-3. `scripts/buildStatic.js`'s `buildPlayers()` had the same SQL
-   `!= 'did not bat'` NULL-comparison bug documented elsewhere in this
-   project (SQL's `!=` never matches `NULL`) - historic data's unknown-method
-   dismissals (`how_out = null`) would have silently excluded batting-only
-   historic players from the Stats page's player-search dropdown. Fixed to
-   `(bp.how_out IS NULL OR bp.how_out != 'did not bat')`.
-
-`site/fixtures.html` and `site/scorecard.html` also needed small changes:
-Fixtures used to treat *any* match with no result as "Upcoming" (fine when
-only Play-Cricket data existed - a null result there really did mean
-"hasn't been played yet" - but wrong for a 2015 match that's long since
-happened). `matches.json` now carries `played`/`hasScorecard` flags computed
-in `buildMatches()`, and Fixtures/Scorecard use those instead of
-`!result` to tell "genuinely upcoming" apart from "historic, no result on
-record".
-
-## What I haven't been able to test yet
-
-This sandbox can only reach a fixed allow-list of domains (npm, GitHub, etc.),
-not play-cricket.com, so I've validated the code against Play-Cricket's own
-documented example data rather than a live API call. Before relying on this,
-run it for real with your credentials — see below.
-
-## Try it for real
-
-```
-cd barwellcc
-npm install
-cp .env.example .env       # then fill in your API token, site_id, club_id
-npm run sync -- 2026       # syncs the 2026 season
-```
-
-This will create `data/barwellcc.db` (a plain SQLite file) with everything
-scored on Play-Cricket this season. Open it with any SQLite browser (e.g. "DB
-Browser for SQLite") to sanity-check the numbers against what's on
-barwell.play-cricket.com before we build anything on top of it.
-
-If you don't know your `site_id` or `club_id`, they're usually visible in your
-Play-Cricket site admin area or in the URLs there — shout if you can't find
-them and I'll help track them down.
-
-## Next steps
-
-1. ~~**Design direction**~~ — done: Averages, Stats and Fixtures & Results
-   visual refresh, all sharing one nav, see `mockups/` and `DESIGN.md`.
-2. ~~**Confirm the live sync looks right**~~ — done: spot-checked repeatedly
-   against barwell.play-cricket.com and the live Hitssports site (results,
-   scores, kick-off times all matched), including catching and fixing a real
-   bug where `W`/`L` was sometimes recorded from the opposition's side
-   instead of ours.
-3. ~~**Run player matching for real**~~ — done: 65 exact + 5 confirmed
-   nicknames (Tommy Wright→Tom Wright, Ady Baker→Adrian Baker, Thomas
-   Middleton→Tom Middleton, Joseph Ennis→Joe Ennis, Dan King→Daniel King), all
-   written to `player_aliases` with `confirmed=1`. Two Hitssports names had no
-   Play-Cricket match: Bradley Richardson (unrecognised — likely historic-only)
-   and Harry Flower (a real player who plays rarely, so probably just hasn't
-   appeared in a synced 2026 match yet — re-run matching later in the season
-   before assuming it's a spelling issue).
-4. ~~**Historic import**~~ — done, and upgraded from the original plan:
-   rather than relying on Hitssports xlsx exports (thin data - no result, no
-   team total, no dismissal method), `scripts/scrapeAllHistoric.js`
-   (`npm run scrape-historic`) scrapes full scorecards directly from the
-   club's own live site, covering every adult team, 2009-2025, in one run.
-   See "Importing historic seasons via the live site" below for the full
-   story and how to backfill/refresh a season.
-5. ~~**Stats queries**~~ — done: `CricketCalc.statsBatting`/`statsBowling`
-   (`site/js/cricket-calc.js`) return individual innings (not aggregated
-   season figures like Averages) so you can search/sort/filter by player,
-   team(s), season(s), fixture type, and a score/wickets range - the same
-   shape as Play-Cricket's own player-search page. Career records/milestones
-   (e.g. "highest score ever", "most wickets in a match") aren't built yet -
-   nothing's stopping them, there's just been no request for that view yet.
-6. **Frontend** — done: Fixtures, Scorecard, Averages and Stats are all real
-   (see below). Nothing left mockup-only.
-7. ~~**Scheduling + hosting**~~ — done: live at
-   `https://barwellcc.github.io/barwellcc-stats/`.
-   `.github/workflows/deploy.yml` re-syncs nightly, rebuilds the static
-   JSON, runs `npm test`, and publishes to GitHub Pages, on a public repo
-   (free forever, no server to pay for or maintain). See "Hosting on GitHub
-   Pages" below for how it's wired and what to check if a nightly run ever
-   fails.
-
-## Running the real site locally
-
-```
-npm run dev
-```
-Runs `npm run build-static` (regenerating `site/data/*.json` from whatever's
-currently in `data/barwellcc.db`), then starts a tiny Express server on
-`http://localhost:4000` that just serves `site/` as static files - nothing
-more. **The site has no backend at request time.** Every page fetches its
-data from `site/data/*.json` once on load and does all its own
-filtering/sorting/aggregation in the browser via `site/js/cricket-calc.js`.
-This was a deliberate rewrite (see `[[project-state]]`/git history around
-2026-07-19): the goal was free hosting on GitHub Pages, which can't run a
-live server or query a database, only serve files - so rather than building
-and maintaining two versions of the aggregation logic (one live, one
-static), the whole site now runs the static way even locally. What you see
-with `npm run dev` is *exactly* what gets published, not an approximation of
-it.
-
-`site/fixtures.html`, `site/scorecard.html`, `site/averages.html` and
-`site/stats.html` are all fully live — real fixtures for any team/season,
-click any completed match for its real scorecard, real batting/bowling
-averages with sortable columns, and a real per-innings search across every
-player/team/season/fixture-type combination.
-
-If you change anything in `data/barwellcc.db` outside of `npm run dev`
-(e.g. running `npm run sync` in a separate terminal), re-run
-`npm run build-static` yourself to pick it up - the dev server doesn't
-watch the database, it only rebuilds once, at startup.
-
-`mockups/*.html` stay untouched as the approved design reference (per
-`DESIGN.md`) — `site/` is where the real, wired-up pages live, not the same
-files. A few non-obvious things worth knowing if you touch
-`scripts/buildStatic.js`, `site/js/cricket-calc.js`, or
-`scripts/deriveFielding.js`:
+Non-obvious things worth knowing before touching `scripts/buildStatic.js`,
+`site/js/cricket-calc.js`, or `scripts/deriveFielding.js`:
 
 - `bowling_performances` rows on an innings belong to whichever team did
-  *not* bat that innings (a real bug hit and fixed twice already in this
-  project — join through the opposition's batting innings for "our" bowling
-  figures), and the same is true of `batting_performances.fielder_name` —
-  the fielder named on a dismissal belongs to whichever team did *not* bat
-  that innings, so `fielding_performances` is only ever derived from
-  `is_us = 0` innings.
-- the `not_out` column is always `0` even for genuine not-outs — derive it
-  from `how_out IN ('not out', 'retired not out')` instead.
-- `how_out = 'did not bat'` is a real row Play-Cricket includes for every
-  player in the XI who never came in to bat (not the same as `not out`) —
-  it has to be excluded from innings-played/runs/average, but still counts
-  towards matches-played, since it means the player was in the squad.
-- a handful of `how_out` values are `NULL`, not `'did not bat'` - genuine
-  completed innings (real runs, real balls faced) where Play-Cricket just
-  never recorded a dismissal method, seen so far only on junior scorecards
-  (e.g. an U11 "Incrediball" match - junior teams are no longer synced at
-  all, see "Importing historic seasons via the live site" above, but the fix
-  below is still needed for a different reason: scraped historic dismissals
-  of unknown method use the exact same `NULL` convention). These need to be
-  *included* as normal innings, not filtered out - a SQL `how_out != 'did not bat'` clause
-  quietly drops them too, because SQL's `!=` never matches `NULL` (it
-  evaluates the whole comparison to `NULL`, which a `WHERE` treats as
-  "no"). Found this the hard way when `scripts/buildStatic.js`'s flat
-  `batting.json` (filtered in JS, `how_out !== 'did not bat'`, which does
-  **not** share that quirk) started showing 15 more real innings on the
-  Stats page than the old SQL-filtered version ever had - the fix was
-  keeping the JS behaviour and treating the old SQL version as the bug it
-  always was, not "matching" it.
-- `overs` (on `bowling_performances`) is cricket n.b notation, not a real
-  decimal — `4.3` means 4 overs and 3 balls (27 balls), not 4.3 overs.
-  Summing or averaging overs needs converting to balls first
-  (`oversToBalls`/`ballsToOvers` in `site/js/cricket-calc.js`).
+  *not* bat that innings — join through the opposition's batting innings
+  for "our" bowling figures. Same for `batting_performances.fielder_name`;
+  `fielding_performances` is only ever derived from `is_us = 0` innings.
+- `not_out` is always `0` even for genuine not-outs — derive it from
+  `how_out IN ('not out', 'retired not out')` instead.
+- `how_out = 'did not bat'` marks a squad member who never came in to
+  bat — exclude from innings-played/runs/average, but still count towards
+  matches-played.
+- A handful of `how_out` values are `NULL` rather than `'did not bat'` —
+  genuine completed innings where Play-Cricket just never recorded a
+  dismissal method (seen on junior scorecards; junior teams are no longer
+  synced, but scraped historic dismissals of unknown method use the same
+  `NULL` convention). Filter with `how_out !== 'did not bat'` in JS, not
+  `how_out != 'did not bat'` in SQL — SQL's `!=` never matches `NULL`, so a
+  SQL-side filter silently drops these rows.
+- `overs` (on `bowling_performances`) is cricket notation, not decimal —
+  `4.3` means 4 overs and 3 balls (27 balls), not 4.3 overs. Convert via
+  `oversToBalls`/`ballsToOvers` in `site/js/cricket-calc.js` before
+  summing/averaging.
 - Play-Cricket sometimes records an unidentified player as the literal
-  string `"Unsure"` - as a dismissal's fielder (usually adult scorecards),
-  and occasionally as the batsman/bowler themselves (seen on junior
-  scorecards, where the scorer doesn't always know every child's name).
-  Either way `"Unsure"` isn't one real person - it's several different
-  unidentified individuals collapsed into a single row in `players`, since
-  `getOrCreatePlayer` matches by exact name. `scripts/deriveFielding.js`
-  and every query in `scripts/buildStatic.js` that joins through `players`
-  exclude it explicitly (`p.name != 'Unsure'` / a name check) rather than
-  crediting a "player" called Unsure with real people's runs, wickets or
-  catches. If you add another query that joins through `players`, check
-  whether it needs the same exclusion.
-- `innings.innings_number` looks like it should tell you which side batted
-  first, but doesn't - Play-Cricket sends `1` for both sides on every
-  single-innings-per-side match (confirmed against their own documented
-  sample payload in `test/sample-match-detail.json`), because it means
-  "this team's Nth innings", not "Nth innings of the match". Batting order
-  is instead inferred from `innings.id` (`scripts/insertMatch.js` inserts
-  both innings in Play-Cricket's own listed order, inside one transaction,
-  every sync - lower id batted first). See `describeResult` in
-  `site/js/cricket-calc.js`, which needs batting order to tell "won by
-  wickets" (second side batted, beat the target) from "won by runs" (first
-  side defended a total) apart.
-- `matches.id` (the autoincrement PK) is **not** a stable identifier across
-  rebuilds, and scorecard URLs used to be built from it directly - the
-  nightly GitHub Action starts from an empty `data/barwellcc.db` every run
-  (see "Hosting on GitHub Pages" below for why) and re-syncs the whole
-  season from Play-Cricket fresh, so `id` just reflects whatever order that
-  night's API response happened to insert matches in. Same-date fixtures
-  (multiple teams often play the same Saturday) aren't guaranteed a stable
-  order, so a bookmarked `scorecard.html?id=7` could silently point at a
-  different match after the next sync. Fixed by using
-  `publicMatchId()` (`scripts/buildStatic.js`) for every scorecard link and
-  filename instead - `play_cricket_match_id` (permanent, assigned once by
-  Play-Cricket) when we have one, a deterministic slug otherwise. See step 4
-  above for what the historic importer needs to do to keep this working.
-
-Run `npm run derive-fielding` any time `fielding_performances` needs
-rebuilding from scratch (it also runs automatically at the end of
-`npm run sync`, so this is only needed if you're testing the derivation
-script in isolation). Run `npm run build-static` any time `site/data/*.json`
-needs rebuilding from scratch (it also runs automatically at the start of
-`npm run dev`).
-
-## Hosting on GitHub Pages
-
-**Live at `https://barwellcc.github.io/barwellcc-stats/`.** The site
-deploys itself: `.github/workflows/deploy.yml` runs nightly (and on every
-push to `main`, and can be triggered manually from the Actions tab),
-re-syncs the current season from Play-Cricket, rebuilds `site/data/*.json`,
-runs `npm test`, and publishes `site/` to GitHub Pages. Free forever on a
-public repo - no server, no hosting bill.
-
-Getting from "workflow file exists" to actually live needed two settings
-only a repo admin can make (documented here in case this ever needs
-redoing on a fresh repo - I can't do either myself):
-
-1. **Repo secrets** (Settings → Secrets and variables → Actions → New
-   repository secret) - the same three values from your local `.env`:
-   `PLAY_CRICKET_API_TOKEN`, `PLAY_CRICKET_SITE_ID`, `PLAY_CRICKET_CLUB_ID`.
-2. **Enable Pages** (Settings → Pages → Build and deployment → Source:
-   "GitHub Actions"). Until this is set, the workflow's `deploy` job fails
-   even if `build` succeeds.
-
-...plus two real bugs that only surfaced once actually deployed (both
-fixed, see git history around 2026-07-19):
-
-- `data/` is gitignored (correctly - only the `.db` file inside it
-  shouldn't be tracked, not the directory), so a fresh CI checkout has no
-  `data/` directory at all, and `better-sqlite3` doesn't create missing
-  parent directories itself - `scripts/db.js`'s `openDb()` now does
-  (`fs.mkdirSync(path.dirname(dbPath), { recursive: true })`) before
-  opening the database. Worth remembering for any future gitignored-folder
-  case: gitignoring a file doesn't guarantee its directory exists elsewhere.
-- there was no page at `/` (only `fixtures/averages/scorecard/stats.html`),
-  so the bare Pages URL 404'd - `site/index.html` is a one-line meta-refresh
-  redirect to `fixtures.html`.
-
-Historic-season data doesn't come from this nightly sync - it's scraped from
-the club's own live site on a manual/occasional basis instead (scraping it
-on every deploy would be excessive - see "Importing historic seasons via the
-live site" above), so the resulting dump is checked into the repo as
-`historic-data/scraped-matches.json` and loaded into the DB on every build
-(`npm run load-historic`, right after `npm run sync` in the workflow).
-
-## ~~Known gap: upcoming fixtures aren't stored yet~~ — fixed
-
-`syncSeason` now stores upcoming fixtures too, not just completed matches:
-
-- `result_summary.json` (used for completed matches) turns out to be a
-  results-only endpoint — it never lists a fixture that hasn't been played,
-  so there was no way to get upcoming fixtures from it no matter how the
-  "no result yet" check was written.
-- Upcoming fixtures instead come from `matches.json`
-  (`fetchAllFixtures`/`scripts/parseFixture.js`), which lists every fixture
-  for the season regardless of whether it's been played — including, oddly,
-  inter-squad "fixtures" like Barwell 2nd XI v Barwell 3rd XI, which
-  `parseFixture` filters out (same `home_club_id`/`away_club_id`).
-  `matches.json`'s own `result` field is never populated even for matches
-  we know are finished, so completed vs upcoming is decided by whether the
-  match's `id` already showed up in `result_summary.json`, not by that field.
-- `matches` now has a `match_time` column (e.g. `"13:00"`), populated for
-  both completed and upcoming matches — it was in the API responses all
-  along (`match_time` on both `result_summary.json` and `matches.json`
-  entries), just not being read.
+  string `"Unsure"` — as a dismissal's fielder (usually adult scorecards),
+  or occasionally as the batsman/bowler themselves (junior scorecards).
+  This isn't one real person — every query in `scripts/deriveFielding.js`
+  and `scripts/buildStatic.js` that joins through `players` excludes it
+  explicitly. Any new query joining through `players` needs the same
+  exclusion.
+- `innings.innings_number` doesn't tell you which side batted first —
+  Play-Cricket sends `1` for both sides' single innings (it means "this
+  team's Nth innings", not "Nth innings of the match"). Batting order is
+  instead inferred from `innings.id` (`scripts/insertMatch.js` inserts both
+  innings in Play-Cricket's own listed order, inside one transaction, every
+  sync — lower id batted first). See `describeResult` in
+  `site/js/cricket-calc.js`.
+- `matches.id` (the autoincrement PK) is **not** stable across rebuilds —
+  the nightly Action re-syncs into a fresh `data/barwellcc.db` every run,
+  so same-date fixtures aren't guaranteed a stable insertion order. Every
+  scorecard link/filename uses `publicMatchId()` (`scripts/buildStatic.js`)
+  instead: `play_cricket_match_id` (permanent, from Play-Cricket) when
+  available, a deterministic slug otherwise.
+- `matches.json` carries `played`/`hasScorecard` flags (computed in
+  `buildMatches()`) — Fixtures/Scorecard use those to tell "genuinely
+  upcoming" apart from "historic match, no result recorded", rather than
+  assuming any match with no `result` is upcoming.
+- `scripts/deriveFielding.js`'s rebuild is scoped to `WHERE match_id IN
+  (SELECT id FROM matches WHERE source = 'playcricket')` — historic
+  (scraped) fielding rows come from `scripts/insertScrapedMatch.js`
+  directly, not from this derivation. An unscoped `DELETE FROM
+  fielding_performances` here would wipe those out on the next `npm run
+  sync`.
 - `scripts/db.js` runs a one-line migration (`ALTER TABLE ... ADD COLUMN`)
-  on every `openDb()` call, since `schema.sql`'s `CREATE TABLE IF NOT EXISTS`
-  never alters a table that already exists on disk. Same pattern to follow
-  for any future schema change on an existing installation.
+  on every `openDb()` call, since `schema.sql`'s `CREATE TABLE IF NOT
+  EXISTS` never alters a table that already exists on disk — follow the
+  same pattern for any future schema change on an existing installation.
 
-Verified: `npm run sync -- 2026` now reports "Stored 62 upcoming fixtures"
-alongside the completed-match count, re-running it is still idempotent (same
-144 total rows both times, no duplicates), and `npm test` passes.
+## Testing
+
+```
+npm test
+```
+
+Covers: Play-Cricket API parsing/insert (against Play-Cricket's own
+documented sample payload) and re-sync idempotency; player-name matching
+(built from Barwell's real xlsx export names); fielding derivation (the
+`is_us` join-direction gotcha); result-margin wording (the
+`innings_number` gotcha); the full static-export pipeline; and the
+historic scraper (fixture-list/scorecard HTML parsing, "did not bat"
+detection, re-scrape idempotency, against real saved scorecard pages).
+
+## Hosting
+
+Live at **https://stats.barwellcc.co.uk** (custom domain via `site/CNAME`,
+DNS CNAME record to `barwellcc.github.io`) and
+`https://barwellcc.github.io/barwellcc-stats/`. `.github/workflows/deploy.yml`
+runs nightly (and on every push to `main`, and manually from the Actions
+tab): re-syncs the current season from Play-Cricket, loads the
+historic-data dump, rebuilds `site/data/*.json`, runs `npm test`, and
+publishes `site/` to GitHub Pages. Free forever on a public repo — no
+server, no hosting bill.
+
+Two settings only a repo admin can set (needed if this is ever redone on a
+fresh repo):
+
+1. **Repo secrets** (Settings → Secrets and variables → Actions):
+   `PLAY_CRICKET_API_TOKEN`, `PLAY_CRICKET_SITE_ID`, `PLAY_CRICKET_CLUB_ID`.
+2. **Pages source** (Settings → Pages → Build and deployment → Source:
+   "GitHub Actions").
+3. **Custom domain** (Settings → Pages → Custom domain), plus the DNS
+   CNAME record at whichever provider hosts the domain.
+
+Historic-season data doesn't come from the nightly sync — it's scraped
+from the club's own live site on a manual/occasional basis (see "Historic
+seasons" above) and checked into the repo as
+`historic-data/scraped-matches.json`, loaded into the DB on every build.
