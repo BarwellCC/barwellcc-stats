@@ -212,14 +212,18 @@
   td.how-out{ text-align:left; color: var(--ink-soft); }
   .not-out{ color: var(--accent); font-weight: 600; }
   tr.dnb td{ color: var(--ink-soft); font-style: italic; }
-  tr.extras-row td{ font-weight: 600; border-top: 2px solid var(--line-strong); }
-  tr.total-row td{ font-weight: 700; font-size: 13.5px; }
+  tr.extras-row td{ font-weight: 600; border-top: 2px solid var(--line-strong); background: var(--head-bg); }
+  tr.total-row td{ font-weight: 700; font-size: 13.5px; background: var(--head-bg); }
   .extras-detail{ color: var(--ink-soft); font-weight: 500; font-size: 11.5px; }
 
   /* Sticky first column - matters most on mobile where the table scrolls horizontally */
   thead th:first-child{ position: sticky; left:0; z-index:3; background: var(--head-bg); }
   tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
+  /* Extras/Total's sticky name cell would otherwise fall back to whichever
+     light/grey stripe its row parity lands on, same issue the row background
+     above just fixed for every other cell in the row. */
+  tbody tr.extras-row td:first-child, tbody tr.total-row td:first-child{ background: var(--head-bg); }
 
   .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -8px; margin-bottom: 24px; line-height:1.5; }
   .page-message{ text-align:center; color: var(--ink-soft); font-size: 14px; padding: 40px 16px; }
