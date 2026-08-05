@@ -31,8 +31,15 @@ function parseTimeText(str) {
   if (m) {
     let hour = Number(m[1]);
     const minute = m[2] || '00';
-    if (m[3] === 'pm' && hour !== 12) hour += 12;
-    if (m[3] === 'am' && hour === 12) hour = 0;
+    // Some historic pages redundantly suffix an already-24-hour time with
+    // am/pm (e.g. "13:00 PM" for a 1pm kickoff, not "1am"/13 hours later).
+    // Only treat the suffix as genuine 12-hour notation when the hour is a
+    // valid 12-hour value (1-12) - anything else is already unambiguous, and
+    // adding 12 again would push it out of range ("13:00 PM" -> "25:00").
+    if (hour >= 1 && hour <= 12) {
+      if (m[3] === 'pm' && hour !== 12) hour += 12;
+      if (m[3] === 'am' && hour === 12) hour = 0;
+    }
     return `${String(hour).padStart(2, '0')}:${minute}`;
   }
   return null;

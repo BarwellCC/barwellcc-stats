@@ -11,6 +11,11 @@ const { buildMatchRecord } = require('../scripts/scrapeAllHistoric');
 assert.strictEqual(parseTimeText('13:00'), '13:00');
 assert.strictEqual(parseTimeText('1pm'), '13:00');
 assert.strictEqual(parseTimeText('1. 30 PM'), '13:30');
+// Some historic pages (2015, 2024 seasons) redundantly suffix an already
+// 24-hour time with am/pm, e.g. "13:00 PM" for a 1pm kickoff - adding 12
+// again produced an impossible "25:00" until this was fixed.
+assert.strictEqual(parseTimeText('13:00 PM'), '13:00');
+assert.strictEqual(parseTimeText('13:30 PM'), '13:30');
 assert.strictEqual(normalizeHowOut('Bowled'), 'b');
 assert.strictEqual(normalizeHowOut('Caught'), 'ct');
 assert.strictEqual(normalizeHowOut('Not Out'), 'not out');
