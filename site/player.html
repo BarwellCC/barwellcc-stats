@@ -258,6 +258,8 @@
   .msel-item{ display:flex; align-items:center; gap:8px; padding: 8px 6px; border-radius: 5px; font-size: 14px; cursor: pointer; }
   .msel-item:hover{ background: rgba(32,30,24,0.06); }
   .msel-item input{ accent-color: var(--gold-hover); width: 16px; height: 16px; flex-shrink:0; }
+  .msel-item-label{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msel-only{ flex-shrink:0; }
 
   .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .results-right{ display:flex; align-items:baseline; gap: 14px; }
@@ -281,7 +283,7 @@
     padding: 10px 8px; border-bottom: 1px solid var(--line-strong);
     background: var(--head-bg); cursor: pointer; user-select: none; white-space: nowrap;
   }
-  thead th:first-child, td.season{ text-align: left; }
+  thead th:first-child, td.season, td.rowlabel{ text-align: left; }
   thead th:hover{ color: var(--accent); }
   thead th .arrow{ display:inline-block; width: 9px; opacity: 0.35; font-size: 9px; }
   thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
@@ -296,7 +298,7 @@
   tbody td:first-child{ position: sticky; left:0; z-index:1; background: var(--card); }
   tbody tr:nth-child(even) td:first-child{ background: var(--row-even); }
 
-  td.season{ font-weight: 600; }
+  td.season, td.rowlabel{ font-weight: 600; }
   .not-out{ color: var(--accent); font-weight: 600; }
   tr.career-row{ font-weight: 700; }
   tr.career-row td{ border-bottom: 2px solid var(--line-strong); }
@@ -325,10 +327,11 @@
     .hs-tile{ flex: initial; }
 
     .search-card{ padding: 22px 24px; }
-    .filter-row{ flex-direction: row; align-items:center; gap: 10px; }
+    .filter-row{ flex-direction: row; align-items:center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
     .filter-group{ flex-direction: row; align-items:center; gap:8px; }
-    .msel-btn{ width:152px; }
-    #teamSelect .msel-btn{ width:200px; }
+    .filter-group.season-group{ margin-left: auto; }
+    .msel-btn{ width:auto; min-width:170px; }
+    #teamSelect .msel-btn{ min-width: 220px; }
 
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 10px; }
@@ -382,6 +385,13 @@
             <div class="msel-panel"></div>
           </div>
         </div>
+        <div class="filter-group season-group">
+          <span class="filter-label">Season</span>
+          <div class="msel" id="seasonSelect">
+            <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+            <div class="msel-panel"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -409,6 +419,28 @@
         </table>
       </div>
     </div>
+
+    <div id="battingBreakdownBlock">
+      <p class="section-label">Batting by Position</p>
+      <div class="card">
+        <div class="table-scroll" id="positionScroll">
+          <table>
+            <thead><tr id="positionHead"></tr></thead>
+            <tbody id="positionBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="section-label">Batting by Dismissal</p>
+      <div class="card">
+        <div class="table-scroll" id="dismissalScroll">
+          <table>
+            <thead><tr id="dismissalHead"></tr></thead>
+            <tbody id="dismissalBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -421,6 +453,8 @@ let teamOptions = [];
 let teamMsel;
 const compOptions = ["League", "Cup", "Friendly"];
 let compMsel;
+let seasonOptions = [];
+let seasonMsel;
 
 const dayMonths = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function formatDate(iso){
@@ -522,8 +556,8 @@ function initDragScroll(container){
   });
 }
 
-function renderBattingTiles(player, teamFilter, compFilter){
-  const top = CricketCalc.topBattingInnings(battingRows, player, { teams: teamFilter, comps: compFilter, n: 3 });
+function renderBattingTiles(player, teamFilter, compFilter, seasonFilter){
+  const top = CricketCalc.topBattingInnings(battingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter, n: 3 });
   const el = document.getElementById('hsBatting');
   if (!top.length){ el.innerHTML = `<div class="hs-tile empty">No batting innings recorded.</div>`; return; }
   el.innerHTML = top.map((t, i) => `
@@ -537,8 +571,8 @@ function renderBattingTiles(player, teamFilter, compFilter){
   initTileClicks(el);
 }
 
-function renderBowlingTiles(player, teamFilter, compFilter){
-  const top = CricketCalc.topBowlingInnings(bowlingRows, player, { teams: teamFilter, comps: compFilter, n: 3 });
+function renderBowlingTiles(player, teamFilter, compFilter, seasonFilter){
+  const top = CricketCalc.topBowlingInnings(bowlingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter, n: 3 });
   const el = document.getElementById('hsBowling');
   if (!top.length){ el.innerHTML = `<div class="hs-tile empty">No bowling performances recorded.</div>`; return; }
   el.innerHTML = top.map((t, i) => `
@@ -576,6 +610,7 @@ function currentSeasonCols(){ return activeTab === 'batting' ? battingSeasonCols
 function cellValue(row, col){
   let val = row[col.key];
   if (col.key === "avg" || col.key === "econ") return fmtAvg(val);
+  if (col.key === "pct") return val == null ? '-' : `${Number(val).toFixed(1)}%`;
   if ((col.key === "high" || col.key === "best") && typeof val === "string" && val.includes("*")) {
     return `${val.replace("*", "")}<span class="not-out">*</span>`;
   }
@@ -624,27 +659,42 @@ function renderSeasonHead(){
   });
 }
 
-function loadSeasonTable(player){
+// Shared by every section on the page - tiles, the season table, and the
+// position/dismissal breakdown below it.
+function getMainFilters(){
   const selectedTeams = teamMsel.selected;
   const teamFilter = selectedTeams.length && selectedTeams.length < teamOptions.length ? selectedTeams : null;
   const selectedComps = compMsel.selected;
   const compFilter = selectedComps.length && selectedComps.length < compOptions.length ? selectedComps : null;
+  const selectedSeasons = seasonMsel.selected;
+  const seasonFilter = selectedSeasons.length && selectedSeasons.length < seasonOptions.length ? selectedSeasons : null;
+  return { teamFilter, compFilter, seasonFilter };
+}
+
+function loadSeasonTable(player){
+  const { teamFilter, compFilter, seasonFilter } = getMainFilters();
+  const matchesMainFilters = (r) =>
+    (!teamFilter || teamFilter.includes(r.team_name)) &&
+    (!compFilter || compFilter.includes(r.competition_type)) &&
+    (!seasonFilter || seasonFilter.includes(String(r.season)));
 
   document.getElementById('battingHSBlock').style.display = activeTab === 'batting' ? '' : 'none';
   document.getElementById('bowlingHSBlock').style.display = activeTab === 'bowling' ? '' : 'none';
+  document.getElementById('battingBreakdownBlock').style.display = activeTab === 'batting' ? '' : 'none';
   document.getElementById('seasonLabel').textContent = activeTab === 'batting' ? 'Batting & Fielding Stats' : 'Bowling Stats';
 
   if (activeTab === 'batting') {
-    renderBattingTiles(player, teamFilter, compFilter);
-    seasonRows = CricketCalc.buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams: teamFilter, comps: compFilter });
-    const nameFiltered = battingRows.filter(r => r.name === player && (!teamFilter || teamFilter.includes(r.team_name)) && (!compFilter || compFilter.includes(r.competition_type)));
-    const fieldFiltered = fieldingRows.filter(r => nameFiltered.some(b => b.player_id === r.player_id) && (!teamFilter || teamFilter.includes(r.team_name)) && (!compFilter || compFilter.includes(r.competition_type)));
+    renderBattingTiles(player, teamFilter, compFilter, seasonFilter);
+    seasonRows = CricketCalc.buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter });
+    const nameFiltered = battingRows.filter(r => r.name === player && matchesMainFilters(r));
+    const fieldFiltered = fieldingRows.filter(r => nameFiltered.some(b => b.player_id === r.player_id) && matchesMainFilters(r));
     const career = CricketCalc.buildBatting(nameFiltered, fieldFiltered, {});
     careerRow = career[0] || null;
+    loadBattingBreakdowns(player);
   } else {
-    renderBowlingTiles(player, teamFilter, compFilter);
-    seasonRows = CricketCalc.buildPlayerBowlingBySeason(bowlingRows, player, { teams: teamFilter, comps: compFilter });
-    const nameFiltered = bowlingRows.filter(r => r.name === player && (!teamFilter || teamFilter.includes(r.team_name)) && (!compFilter || compFilter.includes(r.competition_type)));
+    renderBowlingTiles(player, teamFilter, compFilter, seasonFilter);
+    seasonRows = CricketCalc.buildPlayerBowlingBySeason(bowlingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter });
+    const nameFiltered = bowlingRows.filter(r => r.name === player && matchesMainFilters(r));
     const career = CricketCalc.buildBowling(nameFiltered, {});
     careerRow = career[0] || null;
   }
@@ -653,6 +703,75 @@ function loadSeasonTable(player){
   drawSeasonTable(seasonRows);
   document.getElementById('resultsCount').textContent = `${seasonRows.length} season${seasonRows.length === 1 ? '' : 's'}`;
   syncUrl();
+}
+
+// ---- Sections 3 & 4: batting by position / by dismissal, same sortable-header
+// pattern as the season table above, just two small standalone tables instead
+// of sharing its career-row/team-label logic.
+const positionCols = [
+  {key:"position", label:"Position"}, {key:"i", label:"Innings"}, {key:"no", label:"NO"},
+  {key:"runs", label:"Runs"}, {key:"high", label:"HS", parse:v=>parseFloat(v)}, {key:"avg", label:"Avg"},
+  {key:"pct", label:"%"},
+];
+const dismissalCols = [
+  {key:"mode", label:"Mode of Dismissal"}, {key:"i", label:"Innings"}, {key:"pct", label:"%"},
+];
+
+function initBreakdownTable({ headEl, bodyEl, cols, getRows, emptyText, defaultSortIndex, defaultSortDir }){
+  headEl.innerHTML = cols.map((c,i) => `<th data-i="${i}">${c.label}<span class="arrow">▲</span></th>`).join('');
+
+  function draw(rows){
+    bodyEl.innerHTML = rows.length
+      ? rows.map(r => `<tr>${cols.map((c,i) => `<td${i===0?' class="rowlabel"':''}>${cellValue(r,c)}</td>`).join('')}</tr>`).join('')
+      : `<tr class="no-records"><td colspan="${cols.length}">${emptyText}</td></tr>`;
+  }
+
+  let sortState = { i: defaultSortIndex, dir: defaultSortDir };
+  [...headEl.children].forEach((th, i) => {
+    th.addEventListener('click', () => {
+      const col = cols[i];
+      sortState.dir = (sortState.i === i) ? -sortState.dir : -1;
+      sortState.i = i;
+      [...headEl.children].forEach(h => h.classList.remove('sorted'));
+      th.classList.add('sorted');
+      th.querySelector('.arrow').textContent = sortState.dir === 1 ? '▲' : '▼';
+      const sorted = [...getRows()].sort((a, b) => {
+        let av = a[col.key], bv = b[col.key];
+        if (col.parse) { av = col.parse(av); bv = col.parse(bv); }
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv) * sortState.dir;
+        return (av - bv) * sortState.dir;
+      });
+      draw(sorted);
+    });
+  });
+
+  return { draw };
+}
+
+const positionTable = initBreakdownTable({
+  headEl: document.getElementById('positionHead'), bodyEl: document.getElementById('positionBody'),
+  cols: positionCols, getRows: () => positionRows,
+  emptyText: "No batting position data recorded for this player's matches.",
+  defaultSortIndex: 0, defaultSortDir: 1,
+});
+const dismissalTable = initBreakdownTable({
+  headEl: document.getElementById('dismissalHead'), bodyEl: document.getElementById('dismissalBody'),
+  cols: dismissalCols, getRows: () => dismissalRows,
+  emptyText: 'No batting innings recorded.',
+  defaultSortIndex: 1, defaultSortDir: -1,
+});
+
+let positionRows = [], dismissalRows = [];
+
+function loadBattingBreakdowns(player){
+  const { teamFilter, compFilter, seasonFilter } = getMainFilters();
+  positionRows = CricketCalc.buildPlayerBattingByPosition(battingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter });
+  dismissalRows = CricketCalc.buildPlayerBattingByDismissal(battingRows, player, { teams: teamFilter, comps: compFilter, seasons: seasonFilter });
+  positionTable.draw(positionRows);
+  dismissalTable.draw(dismissalRows);
 }
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
@@ -676,6 +795,7 @@ function syncUrl(){
   params.set('name', currentPlayer);
   if (teamMsel && teamMsel.selected.length && teamMsel.selected.length < teamOptions.length) params.set('team', teamMsel.selected.join(','));
   if (compMsel && compMsel.selected.length && compMsel.selected.length < compOptions.length) params.set('comp', compMsel.selected.join(','));
+  if (seasonMsel && seasonMsel.selected.length && seasonMsel.selected.length < seasonOptions.length) params.set('season', seasonMsel.selected.join(','));
   params.set('tab', activeTab);
   history.replaceState(null, '', `?${params.toString()}`);
 }
@@ -716,7 +836,7 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   options.forEach(opt => {
     const label = document.createElement('label');
     label.className = 'msel-item';
-    label.innerHTML = `<input type="checkbox" value="${opt}"> <span>${opt}</span>`;
+    label.innerHTML = `<input type="checkbox" value="${opt}"> <span class="msel-item-label">${opt}</span><button type="button" class="msel-action msel-only">Only</button>`;
     panel.appendChild(label);
     const cb = label.querySelector('input');
     cb.checked = state.has(opt);
@@ -724,6 +844,15 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
       if (cb.checked) state.add(opt); else state.delete(opt);
       renderLabel();
       onChange && onChange([...state]);
+    });
+    // preventDefault stops the label's native click-forwards-to-checkbox
+    // behaviour, which would otherwise also toggle the checkbox this sits
+    // beside every time "Only" is clicked.
+    label.querySelector('.msel-only').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      state = new Set([opt]);
+      sync();
     });
   });
 
@@ -795,6 +924,7 @@ let currentPlayer = null;
 
   document.getElementById('playerContent').style.display = 'block';
   document.getElementById('playerName').textContent = player;
+  document.title = `Barwell CC - ${player}`;
 
   const seasons = [...new Set([...ownBatting, ...ownBowling].map(r => r.season))].sort((a,b) => a-b);
   document.getElementById('playerSub').textContent = seasons.length
@@ -804,15 +934,22 @@ let currentPlayer = null;
   teamOptions = [...new Set([...ownBatting, ...ownBowling].map(r => r.team_name))].sort();
   const teamSel = parseListParam(params, 'team', teamOptions) || teamOptions;
   const compSel = parseListParam(params, 'comp', compOptions) || ['League'];
+  seasonOptions = [...new Set([...ownBatting, ...ownBowling].map(r => String(r.season)))].sort((a, b) => b - a);
+  const seasonSel = parseListParam(params, 'season', seasonOptions) || seasonOptions;
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
     options: teamOptions, selected: teamSel, onChange: () => loadSeasonTable(player)
   });
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
     options: compOptions, selected: compSel, onChange: () => loadSeasonTable(player)
   });
+  seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
+    options: seasonOptions, selected: seasonSel, onChange: () => loadSeasonTable(player)
+  });
 
   loadSeasonTable(player);
   initScrollHint(document.getElementById('seasonScroll'));
+  initScrollHint(document.getElementById('positionScroll'));
+  initScrollHint(document.getElementById('dismissalScroll'));
   initDragScroll(document.getElementById('hsBatting'));
   initDragScroll(document.getElementById('hsBowling'));
 })();

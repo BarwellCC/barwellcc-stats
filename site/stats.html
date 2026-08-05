@@ -144,6 +144,12 @@
     padding: 16px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(32,30,24,0.04);
   }
   .search-lead{ font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; line-height:1.5; }
+  /* ---- Global Team/Fixture Type/Season row - same component as Averages
+     and the Player page, so this filter reads identically everywhere it
+     appears rather than as a Stats-specific variant. ---- */
+  .filter-row{ display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+  .filter-group{ display:flex; flex-direction:column; gap:5px; }
+  .filter-label{ font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
   .field-grid{ display:grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 14px; }
   .field label{
     display:block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
@@ -192,8 +198,8 @@
   .msel{ position:relative; }
   .msel-btn{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    width: 100%; font-family:'Inter'; font-size: 16px; font-weight: 500;
-    padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line-strong);
+    width: 100%; font-family:'Inter'; font-size: 14px; font-weight: 600;
+    padding: 9px 12px; border-radius: 6px; border: 1px solid var(--line-strong);
     background: var(--card); color: var(--ink); cursor: pointer;
   }
   .msel-btn:hover{ border-color: var(--gold-hover); }
@@ -204,7 +210,7 @@
     display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:20;
     background: var(--card); border: 1px solid var(--line-strong); border-radius: 8px;
     box-shadow: 0 10px 28px rgba(21,20,16,0.16); padding: 8px;
-    max-height: 260px; overflow-y: auto;
+    max-height: 280px; overflow-y: auto;
   }
   .msel.open .msel-panel{ display:block; }
   .msel-actions{ display:flex; gap:12px; padding: 4px 6px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
@@ -213,6 +219,8 @@
   .msel-item{ display:flex; align-items:center; gap:8px; padding: 8px 6px; border-radius: 5px; font-size: 14px; cursor: pointer; }
   .msel-item:hover{ background: rgba(32,30,24,0.06); }
   .msel-item input{ accent-color: var(--gold-hover); width: 16px; height: 16px; flex-shrink:0; }
+  .msel-item-label{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msel-only{ flex-shrink:0; }
 
   .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .section-label{
@@ -287,6 +295,11 @@
 
     .search-card{ padding: 22px 24px; }
     .search-lead{ font-size: 12.5px; }
+    .filter-row{ flex-direction: row; align-items:center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+    .filter-group{ flex-direction: row; align-items:center; gap:8px; }
+    .filter-group.season-group{ margin-left: auto; }
+    .msel-btn{ width:auto; min-width:170px; }
+    #teamSelect .msel-btn{ min-width: 220px; }
     .field-grid{ grid-template-columns: 1fr 1fr; gap: 14px 24px; }
     .field select, .field input, .msel-btn{ font-size: 14px; }
 
@@ -317,32 +330,37 @@
   </div>
 
   <div class="search-card">
-    <p class="search-lead">Select your search criteria to display the stats you wish to search for. Team, Fixture Type and Season all accept one or several values.</p>
-    <div class="field-grid">
-      <div class="field">
-        <label>Player</label>
-        <select id="playerPick"><option value="">--Select a Player--</option></select>
-      </div>
-      <div class="field">
-        <label>Team</label>
+    <div class="filter-row">
+      <div class="filter-group">
+        <span class="filter-label">Team</span>
         <div class="msel" id="teamSelect">
           <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
           <div class="msel-panel"></div>
         </div>
       </div>
-      <div class="field">
-        <label>Fixture Type</label>
+      <div class="filter-group">
+        <span class="filter-label">Fixture Type</span>
         <div class="msel" id="compSelect">
           <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
           <div class="msel-panel"></div>
         </div>
       </div>
-      <div class="field">
-        <label>Season</label>
+      <div class="filter-group season-group">
+        <span class="filter-label">Season</span>
         <div class="msel" id="seasonSelect">
           <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
           <div class="msel-panel"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-card">
+    <p class="search-lead">Select a player to search their individual innings/spells, optionally narrowed by score or wickets.</p>
+    <div class="field-grid" style="grid-template-columns: 1fr; max-width: 340px;">
+      <div class="field">
+        <label>Player</label>
+        <select id="playerPick"><option value="">--Select a Player--</option></select>
       </div>
     </div>
     <div class="range-row" id="scoreRangeRow" style="max-width: 340px; margin-bottom:16px;">
@@ -645,7 +663,7 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   options.forEach(opt => {
     const label = document.createElement('label');
     label.className = 'msel-item';
-    label.innerHTML = `<input type="checkbox" value="${opt}"> <span>${opt}</span>`;
+    label.innerHTML = `<input type="checkbox" value="${opt}"> <span class="msel-item-label">${opt}</span><button type="button" class="msel-action msel-only">Only</button>`;
     panel.appendChild(label);
     const cb = label.querySelector('input');
     cb.checked = state.has(opt);
@@ -653,6 +671,15 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
       if (cb.checked) state.add(opt); else state.delete(opt);
       renderLabel();
       onChange && onChange([...state]);
+    });
+    // preventDefault stops the label's native click-forwards-to-checkbox
+    // behaviour, which would otherwise also toggle the checkbox this sits
+    // beside every time "Only" is clicked.
+    label.querySelector('.msel-only').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      state = new Set([opt]);
+      sync();
     });
   });
 

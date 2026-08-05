@@ -168,7 +168,12 @@ function buildScorecards(db) {
 function buildBattingRows(db) {
   const rows = db
     .prepare(
-      `SELECT bp.player_id, p.name, bp.runs, bp.how_out, bp.fours, bp.sixes,
+      // batting_position is only ever populated for playcricket-sourced rows
+      // (the historic scraper's source page doesn't expose a numeric batting
+      // order) - stays null for historic rows rather than a guessed value,
+      // so any position-based aggregation client-side just has less history
+      // to work with for a player who only played pre-2026 seasons.
+      `SELECT bp.player_id, p.name, bp.runs, bp.how_out, bp.fours, bp.sixes, bp.batting_position AS position,
        m.id AS match_id, m.play_cricket_match_id, m.match_date, m.team_name, m.season,
        m.competition_type, m.opposition_name, m.home_or_away
        FROM batting_performances bp

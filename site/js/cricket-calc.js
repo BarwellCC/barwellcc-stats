@@ -224,9 +224,9 @@
 
   // ---- Player profile: one player's career-best innings/spells and season-by-season splits ----
   // matchId here is match_public_id, same reasoning as statsBatting/statsBowling above.
-  function topBattingInnings(battingRows, player, { teams, comps, n } = {}) {
+  function topBattingInnings(battingRows, player, { teams, comps, seasons, n } = {}) {
     return battingRows
-      .filter((r) => r.how_out !== 'did not bat' && matchesFilter(r, { teams, comps, player }))
+      .filter((r) => r.how_out !== 'did not bat' && matchesFilter(r, { teams, comps, seasons, player }))
       .map((r) => ({
         score: r.runs,
         notOut: r.how_out === 'not out' || r.how_out === 'retired not out',
@@ -243,9 +243,9 @@
       .slice(0, n || 3);
   }
 
-  function topBowlingInnings(bowlingRows, player, { teams, comps, n } = {}) {
+  function topBowlingInnings(bowlingRows, player, { teams, comps, seasons, n } = {}) {
     return bowlingRows
-      .filter((r) => matchesFilter(r, { teams, comps, player }))
+      .filter((r) => matchesFilter(r, { teams, comps, seasons, player }))
       .map((r) => ({
         wickets: r.wickets,
         runsConceded: r.runs_conceded,
@@ -263,11 +263,11 @@
       .slice(0, n || 3);
   }
 
-  function buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams, comps } = {}) {
+  function buildPlayerBattingBySeason(battingRows, fieldingRows, player, { teams, comps, seasons } = {}) {
     const byName = battingRows.filter((r) => r.name === player);
     const playerId = byName.length ? byName[0].player_id : null;
-    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps }));
-    const fieldingFiltered = fieldingRows.filter((r) => r.player_id === playerId && matchesFilter(r, { teams, comps }));
+    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps, seasons }));
+    const fieldingFiltered = fieldingRows.filter((r) => r.player_id === playerId && matchesFilter(r, { teams, comps, seasons }));
 
     const bySeason = new Map();
     function entry(season) {
@@ -326,9 +326,9 @@
       .sort((a, b) => b.season - a.season);
   }
 
-  function buildPlayerBowlingBySeason(bowlingRows, player, { teams, comps } = {}) {
+  function buildPlayerBowlingBySeason(bowlingRows, player, { teams, comps, seasons } = {}) {
     const byName = bowlingRows.filter((r) => r.name === player);
-    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps }));
+    const filtered = byName.filter((r) => matchesFilter(r, { teams, comps, seasons }));
 
     const bySeason = new Map();
     for (const r of filtered) {
@@ -370,6 +370,80 @@
       .sort((a, b) => b.season - a.season);
   }
 
+  // ---- Player profile: batting broken down by position and by dismissal
+  // type, the same two views as the club's own member-profile pages.
+  function buildPlayerBattingByPosition(battingRows, player, { teams, comps, seasons } = {}) {
+    const filtered = battingRows.filter((r) => r.name === player && r.position != null && matchesFilter(r, { teams, comps, seasons }));
+
+    const byPos = new Map();
+    for (const r of filtered) {
+      let e = byPos.get(r.position);
+      if (!e) { e = { position: r.position, i: 0, no: 0, runs: 0, high: 0, highNotOut: false }; byPos.set(r.position, e); }
+      if (r.how_out === 'did not bat') continue; // a reserved-but-unused slot isn't an innings at that position
+
+      e.i += 1;
+      const notOut = r.how_out === 'not out' || r.how_out === 'retired not out';
+      if (notOut) e.no += 1;
+      e.runs += r.runs;
+      if (r.runs > e.high || (r.runs === e.high && notOut && !e.highNotOut)) {
+        e.high = r.runs;
+        e.highNotOut = notOut;
+      }
+    }
+
+    const entries = [...byPos.values()].filter((e) => e.i > 0);
+    const totalInnings = entries.reduce((sum, e) => sum + e.i, 0);
+
+    return entries
+      .map((e) => {
+        const dismissals = e.i - e.no;
+        return {
+          position: e.position,
+          i: e.i,
+          no: e.no,
+          runs: e.runs,
+          high: e.highNotOut ? `${e.high}*` : `${e.high}`,
+          avg: dismissals > 0 ? Number((e.runs / dismissals).toFixed(2)) : null,
+          pct: totalInnings > 0 ? Number(((e.i / totalInnings) * 100).toFixed(1)) : null,
+        };
+      })
+      .sort((a, b) => a.position - b.position);
+  }
+
+  // how_out is raw free text from the source ("b elliott", "ct a n other b
+  // caunt", "lbw", ...), not a clean enum - a dismissal type is always its
+  // leading token, so classifying by prefix covers every real value without
+  // needing to parse the fielder/bowler names that follow it.
+  function dismissalCategory(howOut) {
+    const h = (howOut || '').toLowerCase().trim();
+    if (h === 'did not bat') return 'Did Not Bat';
+    if (h === 'not out') return 'Not Out';
+    if (h === 'retired not out') return 'Retired Not Out';
+    if (h === 'retired out' || h === 'retired') return 'Retired Out';
+    if (h === 'hit wicket') return 'Hit Wicket';
+    if (h.startsWith('lbw')) return 'LBW';
+    if (h.startsWith('ct')) return 'Caught';
+    if (h.startsWith('st')) return 'Stumped';
+    if (h.startsWith('ro') || h.includes('run out')) return 'Run Out';
+    if (h.startsWith('b')) return 'Bowled';
+    return 'Other';
+  }
+
+  function buildPlayerBattingByDismissal(battingRows, player, { teams, comps, seasons } = {}) {
+    const filtered = battingRows.filter((r) => r.name === player && matchesFilter(r, { teams, comps, seasons }));
+
+    const byCat = new Map();
+    for (const r of filtered) {
+      const cat = dismissalCategory(r.how_out);
+      byCat.set(cat, (byCat.get(cat) || 0) + 1);
+    }
+
+    const total = filtered.length;
+    return [...byCat.entries()]
+      .map(([mode, i]) => ({ mode, i, pct: total > 0 ? Number(((i / total) * 100).toFixed(1)) : null }))
+      .sort((a, b) => b.i - a.i);
+  }
+
   // ---- Stats page: which players actually have a qualifying appearance
   // under the current Team/Season/Fixture Type filter, so the Player picker
   // only ever offers names that can return something - not every player
@@ -396,6 +470,7 @@
     statsBatting, statsBowling,
     topBattingInnings, topBowlingInnings,
     buildPlayerBattingBySeason, buildPlayerBowlingBySeason,
+    buildPlayerBattingByPosition, buildPlayerBattingByDismissal,
     playersInScope,
   };
 });
