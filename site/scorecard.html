@@ -445,11 +445,15 @@ function renderBowling(bowling, oppInnings){
     oppInnings.extra_leg_byes ? `${oppInnings.extra_leg_byes}lb` : null,
     oppInnings.extra_penalty_runs ? `${oppInnings.extra_penalty_runs}pen` : null,
   ].filter(Boolean).join(" ");
+  // Same row shape as renderBatting's Extras/Total rows below - label,
+  // detail/overs text, a colspan gap, one number pinned to the last column -
+  // so both tables read consistently instead of bowling's totals landing
+  // mid-row under O/M/R/W with empty cells trailing after them.
   const extrasRow = nonBowlerExtras != null
-    ? `<tr class="extras-row"><td class="name">Extras</td><td colspan="2" class="extras-detail" style="text-align:left">${extrasParts}</td><td>${nonBowlerExtras}</td><td colspan="3"></td></tr>`
+    ? `<tr class="extras-row"><td class="name">Extras</td><td class="extras-detail" style="text-align:left">${extrasParts}</td><td colspan="4"></td><td>${nonBowlerExtras}</td></tr>`
     : '';
   const totalRow = oppInnings.runs != null
-    ? `<tr class="total-row"><td class="name">Total</td><td>${oppInnings.overs != null ? `${oppInnings.overs} overs` : ''}</td><td></td><td>${oppInnings.runs}</td><td>${oppInnings.wickets}</td><td colspan="2"></td></tr>`
+    ? `<tr class="total-row"><td class="name">Total</td><td style="text-align:left">${oppInnings.overs != null ? `${oppInnings.overs} overs` : ''}</td><td colspan="4"></td><td>${oppInnings.runs}/${oppInnings.wickets}</td></tr>`
     : '';
   document.getElementById("bowlingBody").innerHTML = rows + extrasRow + totalRow;
 }
