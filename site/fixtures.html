@@ -241,11 +241,14 @@
   }
   .comp-pill{ font-size: 11px; color: var(--ink-soft); }
 
-  /* Fixture Type column dropped on mobile - it's the least essential of the
-     five (already filterable via the Fixture Type dropdown above), and
-     freeing its width is what gets the table to fit without a horizontal
-     scroll on a phone. Restored at the desktop breakpoint below. */
-  #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4){ display:none; }
+  /* Venue and Fixture Type columns dropped on mobile - Venue folds into the
+     Opposition cell instead as "(H)"/"(A)" (see .venue-inline below), and
+     Type is already filterable via the dropdown above. Restored at the
+     desktop breakpoint below, where there's room for a dedicated column
+     each. */
+  #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4),
+  #fixturesTable th:nth-child(5), #fixturesTable td:nth-child(5){ display:none; }
+  .venue-inline{ color: var(--ink-soft); font-weight: 600; margin-left: 4px; }
   .result-pill{
     display:inline-flex; align-items:center; justify-content:center;
     width: 20px; height:20px; border-radius: 5px; font-size: 11px; font-weight: 700;
@@ -294,7 +297,9 @@
 
     .score-text{ display:inline; }
     td.opp{ white-space: nowrap; }
-    #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4){ display:table-cell; }
+    #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4),
+    #fixturesTable th:nth-child(5), #fixturesTable td:nth-child(5){ display:table-cell; }
+    .venue-inline{ display:none; }
 
     .section-label{ font-size: 13px; letter-spacing: 0.12em; }
     table{ font-size: 13.5px; }
@@ -369,8 +374,22 @@ function formatDate(iso){
   return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]} ${y}`;
 }
 
+// A handful of historic matches carry a garbled source time (25:00/25:30 -
+// not a real hour of the day, a scraper-side parsing quirk) - treat those
+// the same as a genuinely missing time rather than showing a broken value.
+function formatTime(t){
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  if (h == null || h >= 24) return '';
+  const suffix = h >= 12 ? 'pm' : 'am';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2, '0')}${suffix}`;
+}
+
 const cols = [
   {key:"date", label:"Date"},
+  {key:"time", label:"Time"},
   {key:"opp", label:"Opposition"},
   {key:"venue", label:"Venue"},
   {key:"comp", label:"Type"},
@@ -390,18 +409,30 @@ function renderTable(data, headEl, bodyEl){
       // a clickable pill/link either, same as a genuinely upcoming fixture,
       // rather than linking to a scorecard with no real result to show.
       const upcoming = !r.played;
-      const hasResult = !upcoming && !!r.result;
+      // A cancelled fixture never happened - its "scorecard" is just an
+      // empty 0/0 innings with the whole squad marked "did not bat" (see
+      // scripts/buildStatic.js), nothing worth linking to. Treated the same
+      // as "no result recorded" below: not clickable, no scorecard link.
+      const cancelled = r.result === 'C';
+      const hasResult = !upcoming && !!r.result && !cancelled;
       let resultCell;
+      // Upcoming/cancelled/no-result get the same compact pill+label shape
+      // as a completed result (pill always visible, label hidden on mobile
+      // via .score-text) instead of spelling the whole word out on a phone,
+      // where "Upcoming" alone was wide enough to force a horizontal scroll.
       if (upcoming) {
-        resultCell = `<span class="upcoming-text">Upcoming</span>`;
+        resultCell = `<span class="result-row"><span class="result-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span><span class="score-text upcoming-text">Upcoming</span></span>`;
+      } else if (cancelled) {
+        resultCell = `<span class="result-row"><span class="result-pill">C</span><span class="score-text upcoming-text">Cancelled</span></span>`;
       } else if (hasResult) {
         resultCell = `<a class="result-link" href="${r.sc}"><span class="result-pill ${r.result}">${r.result}</span><span class="score-text">${r.resultSummary}</span></a>`;
       } else {
-        resultCell = `<span class="upcoming-text">No result recorded</span>`;
+        resultCell = `<span class="result-row"><span class="result-pill">?</span><span class="score-text upcoming-text">No result recorded</span></span>`;
       }
       return `<tr class="${hasResult ? 'completed' : 'upcoming'}" data-sc="${r.sc}">
         <td>${formatDate(r.date)}</td>
-        <td class="opp">${r.opp}</td>
+        <td>${formatTime(r.time)}</td>
+        <td class="opp">${r.opp}<span class="venue-inline">(${r.venue === 'H' ? 'H' : 'A'})</span></td>
         <td><span class="venue-pill">${r.venue === 'H' ? 'Home' : 'Away'}</span></td>
         <td class="comp-pill">${r.comp}</td>
         <td>${resultCell}</td>
@@ -516,7 +547,7 @@ function loadFixtures(){
   fixtures = allMatches
     .filter(m => m.team === team && m.season === season)
     .map(m => ({
-      date: m.date, opp: m.opp, venue: m.venue, comp: m.comp, result: m.result,
+      date: m.date, time: m.time, opp: m.opp, venue: m.venue, comp: m.comp, result: m.result,
       resultSummary: m.resultSummary, played: m.played,
       sc: `scorecard.html?id=${m.id}`,
     }));
