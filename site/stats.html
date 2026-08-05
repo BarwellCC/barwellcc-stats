@@ -138,6 +138,10 @@
   }
   .tab:hover{ border-color: var(--pitch-green); color: var(--pitch-green); }
   .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
+  /* Belt-and-braces: a combined selector always outranks .tab:hover or
+     .tab.active alone on specificity, so the active tab's text can't lose
+     to the hover color regardless of which theme/variable path is active. */
+  .tab.active:hover{ color: var(--cream); }
 
   .search-card{
     background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);

@@ -167,10 +167,18 @@
      gradient/hs-rank badge unintentionally). */
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]) .tab:hover{ border-color: #5B9BD5; color: #5B9BD5; }
-    :root:not([data-theme="light"]) .tab.active{ background: #5B9BD5; border-color: #5B9BD5; }
+    :root:not([data-theme="light"]) .tab.active{ background: #5B9BD5; border-color: #5B9BD5; color: var(--cream); }
   }
   :root[data-theme="dark"] .tab:hover{ border-color: #5B9BD5; color: #5B9BD5; }
-  :root[data-theme="dark"] .tab.active{ background: #5B9BD5; border-color: #5B9BD5; }
+  :root[data-theme="dark"] .tab.active{ background: #5B9BD5; border-color: #5B9BD5; color: var(--cream); }
+  /* Belt-and-braces: a combined selector always outranks .tab:hover or
+     .tab.active alone on specificity, so the active tab's text can't lose
+     to the hover color again regardless of which variable/override path is
+     active - this is what actually broke on Stats and (still) on this page
+     before this fix, since the dark-mode .tab.active overrides above only
+     set background/border-color, letting .tab:hover's color win when both
+     match the same element. */
+  .tab.active:hover{ color: var(--cream); }
 
   .section-label{
     font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;

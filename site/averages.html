@@ -150,6 +150,11 @@
   }
   :root[data-theme="dark"] .tab:hover{ border-color: #5B9BD5; color: #5B9BD5; }
   :root[data-theme="dark"] .tab.active{ background: #5B9BD5; border-color: #5B9BD5; color: var(--cream); }
+  /* Belt-and-braces on top of the explicit overrides above: a combined
+     selector always outranks .tab:hover or .tab.active alone on
+     specificity, so this can't silently regress again if either override
+     block above ever drifts. */
+  .tab.active:hover{ color: var(--cream); }
 
   /* ---- White card housing the filter dropdowns (same as Stats' search-card) ---- */
   .search-card{
