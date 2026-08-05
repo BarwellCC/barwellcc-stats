@@ -262,6 +262,12 @@
   td.score{ font-variant-numeric: tabular-nums; text-align:right; font-weight: 700; color: var(--accent); }
   .not-out{ color: var(--pitch-green); font-weight: 700; }
   .venue-away{ color: var(--ink-soft); }
+  /* Venue folds into the Opposition cell as "(H)"/"(A)" on mobile instead of
+     its own column (same treatment as Fixtures) - Venue is always the last
+     column on both Batting and Bowling (7 vs 9 columns), so :last-child
+     covers both tabs without needing separate column-count-specific rules. */
+  .venue-inline{ color: var(--ink-soft); font-weight: 600; }
+  thead th:last-child, tbody td:last-child{ display:none; }
   a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
   a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline); }
 
@@ -310,6 +316,8 @@
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 12px; }
     tbody td{ padding: 10px 12px; }
+    thead th:last-child, tbody td:last-child{ display:table-cell; }
+    .venue-inline{ display:none; }
   }
 </style>
 </head>
@@ -465,6 +473,7 @@ function cellHtml(r, c){
   if (c.key === "score") return `<td class="score">${val}</td>`;
   if (c.key === "date") return `<td>${formatDate(val)}</td>`;
   if (c.key === "venue") return `<td class="${val === 'A' ? 'venue-away' : ''}">${val === 'H' ? 'Home' : 'Away'}</td>`;
+  if (c.key === "opp") return `<td>${val}<span class="venue-inline">(${r.venue === 'H' ? 'H' : 'A'})</span></td>`;
   return `<td>${val}</td>`;
 }
 
