@@ -74,7 +74,7 @@ function insertScrapedMatch(db, parsed) {
     const insertBat = db.prepare(
       `INSERT INTO batting_performances (innings_id, player_id, batting_position, runs, balls_faced,
        fours, sixes, how_out, not_out, bowler_name, fielder_name)
-       VALUES (@innings_id, @player_id, NULL, @runs, @balls_faced, @fours, @sixes,
+       VALUES (@innings_id, @player_id, @position, @runs, @balls_faced, @fours, @sixes,
        @how_out, @not_out, NULL, NULL)`
     );
     const insertBowl = db.prepare(
@@ -98,7 +98,11 @@ function insertScrapedMatch(db, parsed) {
       for (const b of inn.batting) {
         const playerId = resolvePlayerId(db, b.player_name);
         if (!playerId) continue;
-        insertBat.run({ ...b, innings_id: inningsId, player_id: playerId });
+        // position defaults to null for dump records from before batting
+        // order was tracked (better-sqlite3 throws on a genuinely missing
+        // named parameter, not just an undefined one) - a fresh scrape/dump
+        // always sets it explicitly, so this only matters for old dumps.
+        insertBat.run({ position: null, ...b, innings_id: inningsId, player_id: playerId });
         if (b.catches || b.stumpings || b.run_outs) {
           insertField.run(matchId, playerId, b.catches || 0, b.stumpings || 0, b.run_outs || 0);
         }

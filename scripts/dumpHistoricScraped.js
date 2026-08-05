@@ -25,6 +25,7 @@ function dumpHistoric(db) {
       const batting = db
         .prepare(
           `SELECT p.name AS player_name, bp.runs, bp.balls_faced, bp.fours, bp.sixes, bp.how_out, bp.not_out,
+           bp.batting_position AS position,
            COALESCE(fp.catches, 0) AS catches, COALESCE(fp.stumpings, 0) AS stumpings, COALESCE(fp.run_outs, 0) AS run_outs
            FROM batting_performances bp
            JOIN players p ON p.id = bp.player_id

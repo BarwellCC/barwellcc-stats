@@ -172,6 +172,12 @@ function parseBattingRows($, table) {
       catches: toNum(clean($(tds.get(8)).text())) || 0,
       stumpings: toNum(clean($(tds.get(9)).text())) || 0,
       run_outs: toNum(clean($(tds.get(10)).text())) || 0,
+      // The scorecard lists batters in the order they actually came out to
+      // bat, so row order doubles as batting_position - same convention
+      // Play-Cricket itself uses. "Did not bat" rows get no position at all
+      // (there's nothing to rank them by), matching how
+      // site/js/cricket-calc.js's position breakdown already excludes them.
+      position: didNotBat ? null : rows.length + 1,
     });
   });
   return rows;
