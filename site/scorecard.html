@@ -211,6 +211,7 @@
   thead th.how-out{ text-align:left; }
   td.how-out{ text-align:left; color: var(--ink-soft); }
   .not-out{ color: var(--accent); font-weight: 600; }
+  .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
   tr.dnb td{ color: var(--ink-soft); font-style: italic; }
   tr.extras-row td{ font-weight: 600; border-top: 2px solid var(--line-strong); background: var(--head-bg); }
   tr.total-row td{ font-weight: 700; font-size: 13.5px; background: var(--head-bg); }
@@ -316,8 +317,10 @@
 
 </div>
 
+<script src="js/duplicate-flags.js"></script>
 <script>
 const resultLabel = {W:"Won", L:"Lost", T:"Tied", D:"Drawn", A:"Abandoned", C:"Cancelled", CON:"Conceded"};
+let flaggedNames = new Map();
 
 const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -393,7 +396,7 @@ function renderBatting(batting, extras, teamTotal){
     const sr = (r.balls != null && r.balls > 0) ? ((r.runs / r.balls) * 100).toFixed(1) : "";
     const runsCell = notOut ? `${r.runs}<span class="not-out">*</span>` : r.runs;
     return `<tr class="${dnb ? 'dnb' : ''}">
-      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a></td>
+      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
       <td class="how-out">${howOut}</td>
       <td>${dnb ? '' : runsCell}</td>
       <td>${r.balls ?? ''}</td>
@@ -427,7 +430,7 @@ function renderBowling(bowling, oppInnings){
     const econ = (r.runs / actualOvers).toFixed(1);
     const avg = r.wkts > 0 ? (r.runs / r.wkts).toFixed(1) : "-";
     return `<tr>
-      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a></td>
+      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
       <td>${r.overs}</td>
       <td>${r.maidens}</td>
       <td>${r.runs}</td>
@@ -498,7 +501,10 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 
   let res;
   try {
-    res = await fetch(`data/scorecards/${id}.json`);
+    [res, flaggedNames] = await Promise.all([
+      fetch(`data/scorecards/${id}.json`),
+      DuplicateFlags.fetchFlaggedNames(),
+    ]);
   } catch (err) {
     showMessage('Could not load the scorecard data.');
     return;

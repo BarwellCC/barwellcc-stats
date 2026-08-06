@@ -256,6 +256,7 @@
   a.player-link{ color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
   a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline, var(--accent)); }
   .not-out{ color: var(--accent); font-weight: 600; }
+  .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
 
   tr.no-records td{
     text-align: center; color: var(--ink-soft); font-style: italic;
@@ -354,10 +355,12 @@
 </div>
 
 <script src="js/cricket-calc.js"></script>
+<script src="js/duplicate-flags.js"></script>
 <script>
 let batting = [];
 let bowling = [];
 let activeTab = 'batting';
+let flaggedNames = new Map();
 
 const battingCols = [
   {key:"name", label:"Player"}, {key:"m", label:"M"}, {key:"i", label:"I"}, {key:"no", label:"NO"},
@@ -388,7 +391,7 @@ function renderTable(data, cols, headEl, bodyEl){
     bodyEl.innerHTML = rows.length ? rows.map(r => {
       const cells = cols.map(c => {
         let val = r[c.key];
-        if (c.key === "name") return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a></td>`;
+        if (c.key === "name") return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a>${DuplicateFlags.badge(val, flaggedNames)}</td>`;
         if (c.key === "high" && typeof val === "string" && val.includes("*")) {
           return `<td>${val.replace("*", "")}<span class="not-out">*</span></td>`;
         }
@@ -574,15 +577,17 @@ function loadAverages(){
 }
 
 async function loadTeamsAndSeasons(){
-  const [matches, batRows, bowlRows, fieldRows] = await Promise.all([
+  const [matches, batRows, bowlRows, fieldRows, flagged] = await Promise.all([
     fetch('data/matches.json').then(r => r.json()),
     fetch('data/batting.json').then(r => r.json()),
     fetch('data/bowling.json').then(r => r.json()),
     fetch('data/fielding.json').then(r => r.json()),
+    DuplicateFlags.fetchFlaggedNames(),
   ]);
   battingRows = batRows;
   bowlingRows = bowlRows;
   fieldingRows = fieldRows;
+  flaggedNames = flagged;
 
   teamOptions = [...new Set(matches.map(m => m.team))].sort();
   seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);

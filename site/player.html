@@ -148,6 +148,9 @@
     pointer-events:none;
   }
   .player-name{ font-family:'Fraunces', serif; font-weight:700; font-size: 22px; line-height:1.25; position:relative; }
+  .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
+  .player-name .dup-flag{ vertical-align: 0; margin-left: 8px; }
+  .player-name .dup-flag svg{ width: 18px; height: 18px; }
   .player-sub{ font-size: 12px; color: rgba(246,241,228,0.72); margin-top: 5px; position:relative; }
 
   /* ---- Batting/Bowling view toggle (same component as Averages/Stats) ---- */
@@ -454,6 +457,7 @@
 </div>
 
 <script src="js/cricket-calc.js"></script>
+<script src="js/duplicate-flags.js"></script>
 <script>
 let activeTab = 'batting';
 let battingRows = [], bowlingRows = [], fieldingRows = [];
@@ -905,6 +909,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 });
 
 let currentPlayer = null;
+let flaggedNames = new Map();
 
 (async function init(){
   const params = new URLSearchParams(location.search);
@@ -914,14 +919,16 @@ let currentPlayer = null;
   activeTab = params.get('tab') === 'bowling' ? 'bowling' : 'batting';
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
 
-  const [batRows, bowlRows, fieldRows] = await Promise.all([
+  const [batRows, bowlRows, fieldRows, flagged] = await Promise.all([
     fetch('data/batting.json').then(r => r.json()),
     fetch('data/bowling.json').then(r => r.json()),
     fetch('data/fielding.json').then(r => r.json()),
+    DuplicateFlags.fetchFlaggedNames(),
   ]);
   battingRows = batRows;
   bowlingRows = bowlRows;
   fieldingRows = fieldRows;
+  flaggedNames = flagged;
 
   const ownBatting = battingRows.filter(r => r.name === player);
   const ownBowling = bowlingRows.filter(r => r.name === player);
@@ -931,7 +938,7 @@ let currentPlayer = null;
   }
 
   document.getElementById('playerContent').style.display = 'block';
-  document.getElementById('playerName').textContent = player;
+  document.getElementById('playerName').innerHTML = `${player}${DuplicateFlags.badge(player, flaggedNames)}`;
   document.title = `Barwell CC - ${player}`;
 
   const seasons = [...new Set([...ownBatting, ...ownBowling].map(r => r.season))].sort((a,b) => a-b);

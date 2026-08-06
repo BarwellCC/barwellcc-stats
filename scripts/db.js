@@ -36,7 +36,7 @@ function openDb() {
 }
 
 // data/player-merges.json holds confirmed duplicate-player decisions (see
-// site/admin.html and scripts/findDuplicatePlayers.js) - e.g. "Dan King"
+// site/duplicates.html and scripts/findDuplicatePlayers.js) - e.g. "Dan King"
 // and "Daniel King" are the same person, and the Play-Cricket-sourced
 // spelling wins. Cached per process since the file only changes when
 // someone confirms a new merge, not per build.

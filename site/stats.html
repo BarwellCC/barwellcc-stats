@@ -261,6 +261,7 @@
   tbody tr:nth-child(even){ background: var(--row-even); }
   td.score{ font-variant-numeric: tabular-nums; text-align:right; font-weight: 700; color: var(--accent); }
   .not-out{ color: var(--pitch-green); font-weight: 700; }
+  .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
   .venue-away{ color: var(--ink-soft); }
   /* Venue folds into the Opposition cell as "(H)"/"(A)" on mobile instead of
      its own column (same treatment as Fixtures) - Venue is always the last
@@ -424,9 +425,11 @@
 </div>
 
 <script src="js/cricket-calc.js"></script>
+<script src="js/duplicate-flags.js"></script>
 <script>
 let activeTab = 'batting';
 let results = [];
+let flaggedNames = new Map();
 
 function numOrNull(v){
   if (v === '') return null;
@@ -465,7 +468,7 @@ function currentCols(){ return activeTab === 'batting' ? battingCols : bowlingCo
 function cellHtml(r, c){
   const val = r[c.key];
   if (c.key === "player") {
-    return `<td><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a></td>`;
+    return `<td><a class="player-link" href="player.html?name=${encodeURIComponent(val)}">${val}</a>${DuplicateFlags.badge(val, flaggedNames)}</td>`;
   }
   if (c.key === "score" && activeTab === 'batting') {
     return `<td class="score">${val}${r.notOut ? '<span class="not-out">*</span>' : ''}</td>`;
@@ -721,13 +724,15 @@ let battingRows = [], bowlingRows = [];
 let initialPlayerParam = '';
 
 async function loadFilters(){
-  const [matches, batRows, bowlRows] = await Promise.all([
+  const [matches, batRows, bowlRows, flagged] = await Promise.all([
     fetch('data/matches.json').then(r => r.json()),
     fetch('data/batting.json').then(r => r.json()),
     fetch('data/bowling.json').then(r => r.json()),
+    DuplicateFlags.fetchFlaggedNames(),
   ]);
   battingRows = batRows;
   bowlingRows = bowlRows;
+  flaggedNames = flagged;
 
   teamOptions = [...new Set(matches.map(m => m.team))].sort();
   seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);

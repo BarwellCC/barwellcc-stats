@@ -257,7 +257,7 @@ function buildPlayers(db) {
   return names.length;
 }
 
-// Feeds site/admin.html (an unlinked, staff-only page - see README.md's
+// Feeds site/duplicates.html (an unlinked, staff-only page - see README.md's
 // "Duplicate player names" section): every remaining likely-duplicate pair
 // among current `players` rows, with appearance counts so a human can judge
 // which side is the real record without needing direct DB access. Merges
@@ -282,7 +282,7 @@ function buildDuplicateCandidates(db) {
 }
 
 // Copies the confirmed-merges config into site/data/ purely so
-// site/admin.html can show "already merged" for transparency - the file
+// site/duplicates.html can show "already merged" for transparency - the file
 // under data/ is what scripts/db.js actually reads to apply merges.
 function buildPlayerMerges() {
   const merges = fs.existsSync(MERGES_PATH) ? JSON.parse(fs.readFileSync(MERGES_PATH, 'utf8')) : [];

@@ -39,7 +39,7 @@ seasons (2009–2025).
   xlsx-exported player names against known Play-Cricket players. See
   "Player name matching" below.
 - **`scripts/findDuplicatePlayers.js`** (`npm run find-duplicates`) /
-  **`site/admin.html`** (unlinked, not in the site nav) / **`data/player-merges.json`**
+  **`site/duplicates.html`** (unlinked, not in the site nav) / **`data/player-merges.json`**
   — flags and (once confirmed) applies duplicate-player merges. See
   "Duplicate player names" below.
 - **`mockups/*.html`** — the approved visual-design reference (see
@@ -155,7 +155,7 @@ rows instead of one — e.g. "Dan King" (historic) and "Daniel King"
 npm run find-duplicates       # prints a report of likely duplicate pairs
 ```
 
-`site/admin.html` — an **unlinked** page, not in the site nav — shows the
+`site/duplicates.html` — an **unlinked** page, not in the site nav — shows the
 same report in the browser, with appearance counts and a suggested
 canonical name (the Play-Cricket-sourced spelling wins when only one side
 has a Play-Cricket ID). Since the site has no backend, this page can only

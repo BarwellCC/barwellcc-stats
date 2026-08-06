@@ -99,7 +99,7 @@ function main() {
     console.log(`"${c.a.name}" (id ${c.a.id}) <-> "${c.b.name}" (id ${c.b.id})`);
     console.log(`  ${c.matchType}, confidence ${c.confidence} - ${c.reason}`);
   }
-  console.log('\nReview these at site/admin.html, then confirm in data/player-merges.json.');
+  console.log('\nReview these at site/duplicates.html, then confirm in data/player-merges.json.');
 }
 
 if (require.main === module) {
