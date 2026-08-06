@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Barwell CC — Admin</title>
+<link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96">
+<script>
+(function(){
+  var stored = localStorage.getItem('barwellcc-theme');
+  if(stored === 'dark' || stored === 'light') document.documentElement.setAttribute('data-theme', stored);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg-page: #F4F3F1; --card: #FDFDFC; --row-even: #F1F0EE; --head-bg: #E8E6E3;
+    --ink: #201E18; --ink-soft: #5B5548; --accent: #0A6CB3;
+    --line: #DCDAD5; --line-strong: #BFBBB0; --radius: 10px;
+    --ok: #2E7D46; --ok-bg: #E4F3E8; --warn: #B8923A; --warn-bg: #F7EFDC; --danger: #B3331C; --danger-bg: #F8E4DF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --line: #2B3944; --line-strong: #3D4F5C;
+      --ok: #6FCB8F; --ok-bg: #17301F; --warn: #D4AF5A; --warn-bg: #332812; --danger: #E38268; --danger-bg: #341A14;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --line: #2B3944; --line-strong: #3D4F5C;
+    --ok: #6FCB8F; --ok-bg: #17301F; --warn: #D4AF5A; --warn-bg: #332812; --danger: #E38268; --danger-bg: #341A14;
+    color-scheme: dark;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; background: var(--bg-page); color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.5;
+  }
+  .page{ max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1{ font-family:'Fraunces', serif; font-weight:700; font-size: 26px; margin: 0 0 4px; }
+  .subtitle{ color: var(--ink-soft); margin: 0 0 24px; max-width: 62ch; }
+  .subtitle code{ background: var(--head-bg); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  h2{ font-family:'Fraunces', serif; font-weight:600; font-size: 17px; margin: 32px 0 10px; }
+  .card{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow:hidden; }
+  .pair{ border-bottom: 1px solid var(--line); padding: 14px 18px; display:flex; align-items:center; gap: 16px; flex-wrap: wrap; }
+  .pair:last-child{ border-bottom:none; }
+  .pair-names{ display:flex; align-items:center; gap:10px; font-weight:600; font-size: 15px; flex: 1 1 260px; min-width: 220px; }
+  .pair-names .vs{ color: var(--ink-soft); font-weight: 400; font-size: 13px; }
+  .name-tag{ display:flex; flex-direction:column; gap: 2px; }
+  .name-tag .name{ font-family:'Fraunces', serif; }
+  .name-tag .meta{ font-weight: 400; font-size: 11.5px; color: var(--ink-soft); }
+  .badge{ display:inline-flex; align-items:center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-pc{ background: var(--ok-bg); color: var(--ok); }
+  .badge-none{ background: var(--head-bg); color: var(--ink-soft); }
+  .match-type{ font-size: 11.5px; padding: 3px 9px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+  .match-type.nickname{ background: var(--ok-bg); color: var(--ok); }
+  .match-type.fuzzy{ background: var(--warn-bg); color: var(--warn); }
+  .match-type.suffix{ background: var(--danger-bg); color: var(--danger); }
+  .reason{ color: var(--ink-soft); font-size: 12.5px; flex-basis: 100%; }
+  .rule{ font-size: 12.5px; color: var(--ink-soft); flex-basis: 100%; }
+  .rule strong{ color: var(--ink); }
+  .empty{ padding: 28px 18px; color: var(--ink-soft); text-align:center; }
+  .merged-row{ display:flex; align-items:center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .merged-row:last-child{ border-bottom: none; }
+  .merged-row .arrow{ color: var(--ink-soft); }
+  .flag-note{ background: var(--danger-bg); color: var(--danger); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 18px; }
+  .loading{ color: var(--ink-soft); padding: 12px 0; }
+  footer{ margin-top: 40px; font-size: 12px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Duplicate players</h1>
+  <p class="subtitle">
+    Unlinked staff page — not part of the site nav. Scans the current
+    <code>players</code> table for names that are likely the same person
+    under two spellings (nicknames, typos). This page can only <em>flag</em>
+    candidates — the site is static with no backend, so a merge is applied
+    by adding an entry to <code>data/player-merges.json</code> and
+    redeploying, not by clicking anything here.
+  </p>
+
+  <div id="flagNote"></div>
+
+  <h2>Needs review</h2>
+  <div id="candidates" class="card"><div class="loading">Loading…</div></div>
+
+  <h2>Already merged</h2>
+  <div id="merged" class="card"><div class="loading">Loading…</div></div>
+
+  <footer>Rule of thumb: when one spelling has a Play-Cricket ID and the other doesn't, the Play-Cricket spelling wins as canonical.</footer>
+</div>
+
+<script>
+function badge(p) {
+  return p.play_cricket_id
+    ? '<span class="badge badge-pc">Play-Cricket #' + p.play_cricket_id + '</span>'
+    : '<span class="badge badge-none">historic only</span>';
+}
+
+function nameTag(p) {
+  return '<div class="name-tag">' +
+    '<span class="name">' + p.name + '</span>' +
+    '<span class="meta">' + p.appearances + ' innings/spells &middot; ' + badge(p) + '</span>' +
+    '</div>';
+}
+
+function suggestedRule(a, b) {
+  if (a.play_cricket_id && !b.play_cricket_id) return '<strong>' + a.name + '</strong> is the Play-Cricket record — merge <strong>' + b.name + '</strong> into it.';
+  if (b.play_cricket_id && !a.play_cricket_id) return '<strong>' + b.name + '</strong> is the Play-Cricket record — merge <strong>' + a.name + '</strong> into it.';
+  if (!a.play_cricket_id && !b.play_cricket_id) return 'Neither has a Play-Cricket ID yet — no automatic rule applies, decide by hand.';
+  return 'Both have a Play-Cricket ID — these are unlikely to be the same person; check carefully before merging.';
+}
+
+Promise.all([
+  fetch('data/duplicate-candidates.json').then((r) => r.json()),
+  fetch('data/player-merges.json').then((r) => r.json()),
+]).then(([candidates, merges]) => {
+  const candidatesEl = document.getElementById('candidates');
+  if (candidates.length === 0) {
+    candidatesEl.innerHTML = '<div class="empty">No likely duplicates found right now.</div>';
+  } else {
+    candidatesEl.innerHTML = candidates.map((c) => {
+      const suffixNote = /\b(jnr|jr|snr|sr)\b/i.test(c.a.name) || /\b(jnr|jr|snr|sr)\b/i.test(c.b.name);
+      return '<div class="pair">' +
+        '<div class="pair-names">' + nameTag(c.a) + '<span class="vs">vs</span>' + nameTag(c.b) + '</div>' +
+        '<span class="match-type ' + c.matchType + '">' + c.matchType + ' &middot; ' + Math.round(c.confidence * 100) + '%</span>' +
+        '<div class="reason">' + c.reason + '</div>' +
+        (suffixNote
+          ? '<div class="rule" style="color:var(--danger)">Jnr/Snr suffix present — this conventionally marks two different people (e.g. father &amp; son). Confirm with someone who knows the club before merging.</div>'
+          : '<div class="rule">' + suggestedRule(c.a, c.b) + '</div>') +
+        '</div>';
+    }).join('');
+  }
+
+  const mergedEl = document.getElementById('merged');
+  if (merges.length === 0) {
+    mergedEl.innerHTML = '<div class="empty">No merges confirmed yet.</div>';
+  } else {
+    mergedEl.innerHTML = merges.map((m) =>
+      m.aliases.map((alias) =>
+        '<div class="merged-row"><span>' + alias + '</span><span class="arrow">&rarr;</span><strong>' + m.canonical + '</strong></div>'
+      ).join('')
+    ).join('');
+  }
+}).catch((err) => {
+  document.getElementById('candidates').innerHTML = '<div class="empty">Could not load data/duplicate-candidates.json — run <code>npm run build-static</code> first.</div>';
+  document.getElementById('merged').innerHTML = '';
+  console.error(err);
+});
+</script>
+</body>
+</html>

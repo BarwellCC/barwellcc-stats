@@ -12,6 +12,9 @@ const fs = require('fs');
 const path = require('path');
 const { openDb } = require('./db');
 const { describeResult } = require('../site/js/cricket-calc');
+const { findDuplicatePlayers } = require('./findDuplicatePlayers');
+
+const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
 
 const OUT_DIR = process.env.STATIC_OUT_DIR || path.join(__dirname, '..', 'site', 'data');
 
@@ -254,6 +257,39 @@ function buildPlayers(db) {
   return names.length;
 }
 
+// Feeds site/admin.html (an unlinked, staff-only page - see README.md's
+// "Duplicate player names" section): every remaining likely-duplicate pair
+// among current `players` rows, with appearance counts so a human can judge
+// which side is the real record without needing direct DB access. Merges
+// already confirmed in data/player-merges.json are folded into one row by
+// scripts/db.js before this runs, so they don't show up here again.
+function buildDuplicateCandidates(db) {
+  const players = db.prepare('SELECT id, name, play_cricket_id FROM players').all();
+  const appearances = (id) => {
+    const bat = db.prepare('SELECT COUNT(*) c FROM batting_performances WHERE player_id = ?').get(id).c;
+    const bowl = db.prepare('SELECT COUNT(*) c FROM bowling_performances WHERE player_id = ?').get(id).c;
+    return bat + bowl;
+  };
+  const candidates = findDuplicatePlayers(players).map((c) => ({
+    a: { ...c.a, appearances: appearances(c.a.id) },
+    b: { ...c.b, appearances: appearances(c.b.id) },
+    matchType: c.matchType,
+    confidence: c.confidence,
+    reason: c.reason,
+  }));
+  writeJson('duplicate-candidates.json', candidates);
+  return candidates.length;
+}
+
+// Copies the confirmed-merges config into site/data/ purely so
+// site/admin.html can show "already merged" for transparency - the file
+// under data/ is what scripts/db.js actually reads to apply merges.
+function buildPlayerMerges() {
+  const merges = fs.existsSync(MERGES_PATH) ? JSON.parse(fs.readFileSync(MERGES_PATH, 'utf8')) : [];
+  writeJson('player-merges.json', merges);
+  return merges.length;
+}
+
 function buildStatic() {
   const db = openDb();
 
@@ -268,12 +304,15 @@ function buildStatic() {
   const bowlingCount = buildBowlingRows(db);
   const fieldingCount = buildFieldingRows(db);
   const playerCount = buildPlayers(db);
+  const duplicateCount = buildDuplicateCandidates(db);
+  const mergeCount = buildPlayerMerges();
 
   db.close();
 
   console.log(
     `Wrote ${OUT_DIR}: ${matchCount} matches, ${scorecardCount} scorecards, ` +
-    `${battingCount} batting rows, ${bowlingCount} bowling rows, ${fieldingCount} fielding rows, ${playerCount} players.`
+    `${battingCount} batting rows, ${bowlingCount} bowling rows, ${fieldingCount} fielding rows, ${playerCount} players, ` +
+    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges.`
   );
 }
 

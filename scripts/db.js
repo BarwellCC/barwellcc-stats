@@ -3,6 +3,7 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 
 const SCHEMA_PATH = path.join(__dirname, '..', 'schema.sql');
+const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
 
 function getDbPath() {
   return process.env.DB_PATH || path.join(__dirname, '..', 'data', 'barwellcc.db');
@@ -30,7 +31,57 @@ function openDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
   db.exec(schema);
   migrate(db);
+  applyPlayerMerges(db);
   return db;
+}
+
+// data/player-merges.json holds confirmed duplicate-player decisions (see
+// site/admin.html and scripts/findDuplicatePlayers.js) - e.g. "Dan King"
+// and "Daniel King" are the same person, and the Play-Cricket-sourced
+// spelling wins. Cached per process since the file only changes when
+// someone confirms a new merge, not per build.
+let playerMergesCache = null;
+function loadPlayerMerges() {
+  if (!playerMergesCache) {
+    playerMergesCache = fs.existsSync(MERGES_PATH)
+      ? JSON.parse(fs.readFileSync(MERGES_PATH, 'utf8'))
+      : [];
+  }
+  return playerMergesCache;
+}
+
+// Redirects a known alias straight to its canonical name before any lookup
+// or insert happens, so a confirmed duplicate never gets its own `players`
+// row again - important because data/barwellcc.db is gitignored and
+// rebuilt from scratch on every deploy (see README.md), so this has to be
+// re-derived from data/player-merges.json every time, not fixed once in the
+// database.
+function canonicalPlayerName(name) {
+  for (const { canonical, aliases } of loadPlayerMerges()) {
+    if (aliases.includes(name)) return canonical;
+  }
+  return name;
+}
+
+// Folds a pre-existing alias player row (and its performances) into its
+// canonical row. Only has anything to do when a merge is added to
+// data/player-merges.json after the alias row already exists in a
+// long-lived local data/barwellcc.db - a fresh rebuild never creates the
+// alias row in the first place, since getOrCreatePlayer() below resolves
+// the canonical name up front. Safe to run on every openDb(): a no-op once
+// the alias row has already been folded in.
+function applyPlayerMerges(db) {
+  for (const { canonical, aliases } of loadPlayerMerges()) {
+    for (const alias of aliases) {
+      const aliasRow = db.prepare('SELECT id FROM players WHERE name = ?').get(alias);
+      if (!aliasRow) continue;
+      const canonicalId = getOrCreatePlayer(db, canonical, null);
+      db.prepare('UPDATE batting_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
+      db.prepare('UPDATE bowling_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
+      db.prepare('UPDATE fielding_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
+      db.prepare('DELETE FROM players WHERE id = ?').run(aliasRow.id);
+    }
+  }
 }
 
 // Finds or creates a player row by name, optionally attaching a Play-Cricket
@@ -38,7 +89,7 @@ function openDb() {
 // row from historic data if it's missing).
 function getOrCreatePlayer(db, name, playCricketId) {
   if (!name) return null;
-  const cleanName = name.trim();
+  const cleanName = canonicalPlayerName(name.trim());
 
   if (playCricketId) {
     const byPcId = db.prepare('SELECT id FROM players WHERE play_cricket_id = ?').get(playCricketId);
@@ -59,4 +110,4 @@ function getOrCreatePlayer(db, name, playCricketId) {
   return info.lastInsertRowid;
 }
 
-module.exports = { openDb, getOrCreatePlayer, getDbPath };
+module.exports = { openDb, getOrCreatePlayer, getDbPath, canonicalPlayerName };

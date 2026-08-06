@@ -38,6 +38,10 @@ seasons (2009–2025).
 - **`scripts/matchPlayers.js`** (`npm run match-players`) — reconciles
   xlsx-exported player names against known Play-Cricket players. See
   "Player name matching" below.
+- **`scripts/findDuplicatePlayers.js`** (`npm run find-duplicates`) /
+  **`site/admin.html`** (unlinked, not in the site nav) / **`data/player-merges.json`**
+  — flags and (once confirmed) applies duplicate-player merges. See
+  "Duplicate player names" below.
 - **`mockups/*.html`** — the approved visual-design reference (see
   `DESIGN.md`). `site/` is the real, wired-up implementation, kept as
   separate files from the mockups.
@@ -138,6 +142,45 @@ See `test/matchPlayers.test.js` for the matching-logic tests.
 unpatched vulnerabilities (SheetJS only ships fixes via their own site
 now). `package.json` points `xlsx` at SheetJS's own patched build directly
 instead — nothing to do unless `npm install` complains about that URL.
+
+### Duplicate player names (historic scrape ↔ Play-Cricket)
+
+Separate from the xlsx matching above: the historic site scraper and the
+Play-Cricket sync sometimes capture the same real person under two
+different spellings (a nickname, a typo), so they end up as two `players`
+rows instead of one — e.g. "Dan King" (historic) and "Daniel King"
+(Play-Cricket).
+
+```
+npm run find-duplicates       # prints a report of likely duplicate pairs
+```
+
+`site/admin.html` — an **unlinked** page, not in the site nav — shows the
+same report in the browser, with appearance counts and a suggested
+canonical name (the Play-Cricket-sourced spelling wins when only one side
+has a Play-Cricket ID). Since the site has no backend, this page can only
+*flag* candidates, not merge them — confirm a real duplicate by hand and
+add it to **`data/player-merges.json`**:
+
+```json
+{ "canonical": "Daniel King", "aliases": ["Dan King"] }
+```
+
+`scripts/db.js` reads this file on every `openDb()` call and redirects any
+alias straight to its canonical name before creating/looking up a player
+row — this has to be re-derived every run, not fixed once in the database,
+since `data/barwellcc.db` is gitignored and rebuilt from scratch on every
+deploy (see "Architecture" above). It also folds in any performances
+already recorded against a pre-existing alias row, so it's safe to add a
+merge after the alias row already exists in a long-lived local database.
+
+A `Jnr`/`Snr`/`Jr`/`Sr` suffix (e.g. "Geoff Hines Jnr" vs "Geoff Hines
+Snr") is flagged separately and *not* suggested for auto-merging — that
+convention usually marks two different people (commonly a parent and
+child both playing for the club), so it needs a human who knows the club
+to confirm either way, not a spelling-similarity guess.
+
+See `test/playerMerges.test.js` for the matching/merge-application tests.
 
 ## Known behaviors & gotchas
 
