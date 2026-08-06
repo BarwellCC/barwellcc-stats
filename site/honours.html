@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barwell CC - Batting Honours</title>
+<link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#1A5478">
+<script>
+// Applied before paint so a stored preference doesn't flash the other theme.
+(function(){
+  var stored = localStorage.getItem('barwellcc-theme');
+  if(stored === 'dark' || stored === 'light') document.documentElement.setAttribute('data-theme', stored);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    --pitch-green: #1A5478;
+    --pitch-green-dark: #0D3550;
+    --cream: #F6F1E4;
+    --bg-page: #F4F3F1;
+    --card: #FDFDFC;
+    --row-even: #F1F0EE;
+    --head-bg: #E8E6E3;
+    --ink: #201E18;
+    --ink-soft: #5B5548;
+    --maroon: #1A5478;
+    --accent: #0A6CB3;
+    --accent-underline: rgba(10,108,179,0.35);
+    --brass: #B8923A;
+    --brass-bright: #D4AF5A;
+    --gold-hover: var(--brass);
+    --line: #DCDAD5;
+    --line-strong: #BFBBB0;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --pitch-green: #5B9BD5; --gold-hover: var(--brass-bright);
+      --accent-underline: rgba(91,155,213,0.4); --line: #2B3944; --line-strong: #3D4F5C;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --pitch-green: #5B9BD5; --gold-hover: var(--brass-bright);
+    --accent-underline: rgba(91,155,213,0.4); --line: #2B3944; --line-strong: #3D4F5C;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"]{ color-scheme: light; }
+  html{ scrollbar-gutter: stable; }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* ============ MOBILE-FIRST BASE STYLES ============ */
+  body{
+    margin:0;
+    background: var(--bg-page);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background .15s ease, color .15s ease;
+  }
+  .page{ max-width: 980px; margin: 0 auto; padding: 0 12px 48px; }
+
+  /* ---- Shared site nav + theme toggle (identical across every page - see
+     DESIGN.md; no shared template, so this block is kept in sync by hand) ---- */
+  .site-nav{ display:flex; align-items:stretch; background: var(--pitch-green-dark); margin: 0 -12px; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .site-nav-links{ display:flex; flex:1; }
+  .site-nav-links a{
+    flex: 1 1 0; text-align:center; padding: 11px 8px;
+    font-family:'Inter'; font-weight:600; font-size: 12px; letter-spacing:0.05em; text-transform:uppercase;
+    color: rgba(246,241,228,0.62); text-decoration:none; border-bottom: 2px solid transparent;
+  }
+  .site-nav-links a:hover{ color: var(--cream); }
+  .site-nav-links a.active{ color: var(--brass-bright); border-bottom-color: var(--brass); }
+  .theme-toggle{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width: 42px; border:none; border-left: 1px solid rgba(255,255,255,0.1);
+    background: transparent; color: rgba(246,241,228,0.62); cursor:pointer; padding:0;
+  }
+  .theme-toggle:hover{ color: var(--brass-bright); }
+  .theme-toggle svg{ width:16px; height:16px; }
+  .theme-toggle .icon-sun{ display:none; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun{ display:block; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon{ display:none; }
+  }
+  :root[data-theme="dark"] .theme-toggle .icon-sun{ display:block; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon{ display:none; }
+
+  .tabs{ display:flex; gap:6px; margin-top: 18px; margin-bottom: 16px; }
+  .tab{
+    flex:1 1 0; text-align:center;
+    font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-soft);
+    cursor: pointer; transition: all .15s ease;
+  }
+  .tab:hover{ border-color: var(--pitch-green); color: var(--pitch-green); }
+  .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
+  .tab.active:hover{ color: var(--cream); }
+
+  /* ---- Blue plaque-style header, echoing the club's literal honours board
+     rather than a generic data table label ---- */
+  /* Horizontal padding matches thead th/tbody td exactly (8px mobile, 12px
+     desktop below) so the title/count line up with the Year and Score
+     columns rather than reading as a differently-inset banner. */
+  .table-header{
+    background: linear-gradient(135deg, var(--pitch-green), var(--pitch-green-dark));
+    color: var(--cream); padding: 13px 8px; border-radius: var(--radius) var(--radius) 0 0;
+    display:flex; align-items:baseline; justify-content:space-between; gap: 10px;
+  }
+  .table-header h2{
+    font-family:'Fraunces', serif; font-weight:700; font-size: 16px; margin:0; letter-spacing: 0.01em;
+  }
+  .table-header .count{
+    font-family:'Inter'; font-weight:700; font-size:11px; color: var(--brass-bright);
+    text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap;
+  }
+  .card{
+    background: var(--card); border: 1px solid var(--line); border-top:none;
+    border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 1px 2px rgba(32,30,24,0.04);
+    overflow:hidden; margin-bottom: 28px;
+  }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width: 100%; min-width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th{
+    text-align: left; font-weight: 600; font-size: 10.5px; letter-spacing: 0.02em;
+    text-transform: uppercase; color: var(--ink-soft); padding: 10px 8px;
+    border-bottom: 1px solid var(--line-strong); background: var(--head-bg); white-space: nowrap;
+  }
+  thead th.num{ text-align: right; }
+  tbody td{ padding: 9px 8px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+  tbody tr:last-child td{ border-bottom: none; }
+  tbody tr:nth-child(even){ background: var(--row-even); }
+  td.score{ font-variant-numeric: tabular-nums; text-align:right; font-weight: 700; color: var(--accent); }
+  .not-out{ color: var(--pitch-green); font-weight: 700; }
+  .venue-tag{ color: var(--ink-soft); font-weight: 600; }
+  .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
+  a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
+  a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline); }
+
+  tbody tr[data-sc]{ cursor: pointer; }
+  tbody tr[data-sc]:hover td{ background: var(--head-bg); }
+
+  tr.no-records td{
+    text-align: center; color: var(--ink-soft); font-style: italic; padding: 20px 8px; background: none;
+  }
+  .loading{ padding: 24px; text-align:center; color: var(--ink-soft); }
+
+  /* ---- "Show earlier" is the table's own first row, not a button bolted
+     above it - it sits exactly where the next-older batch is about to
+     appear, so clicking it reads as reaching further back into the board
+     rather than "loading more" forward. ---- */
+  tr.load-earlier td{
+    text-align: center; font-weight: 700; font-size: 12px; letter-spacing: 0.02em;
+    color: var(--accent); background: var(--head-bg); padding: 11px 8px;
+    cursor: pointer; white-space: normal;
+  }
+  tr.load-earlier:hover td{ background: var(--line); }
+
+  /* ============ LARGER SCREENS ============ */
+  @media (min-width: 640px){
+    .page{ padding: 0 20px 64px; }
+    .site-nav{ margin: 0 -20px; }
+    .site-nav-links a{ flex: none; padding: 12px 26px; font-size: 12.5px; }
+    .tabs{ gap:6px; }
+    .tab{ flex: none; padding: 8px 18px; }
+    .table-header{ padding: 15px 12px; }
+    .table-header h2{ font-size: 17px; }
+    table{ font-size: 13.5px; }
+    thead th{ font-size: 11.5px; padding: 12px 12px; }
+    tbody td{ padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="site-nav">
+    <div class="site-nav-links">
+      <a href="fixtures.html">Fixtures</a>
+      <a href="averages.html">Averages</a>
+      <a href="stats.html">Stats</a>
+      <a href="honours.html" class="active">Honours</a>
+    </div>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </nav>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="batting">Batting</div>
+    <div class="tab" data-tab="bowling">Bowling</div>
+  </div>
+
+  <div id="battingSection">
+    <div class="table-header">
+      <h2>Saturday League Hundreds</h2>
+      <span class="count" id="battingCount"></span>
+    </div>
+    <div class="card"><div class="table-scroll"><table>
+      <thead><tr><th>Year</th><th>Player</th><th>Team</th><th>Opposition</th><th class="num">Score</th></tr></thead>
+      <tbody id="battingBody"><tr class="no-records"><td colspan="5">Loading…</td></tr></tbody>
+    </table></div></div>
+  </div>
+
+  <div id="bowlingSection" style="display:none">
+    <div class="table-header">
+      <h2>Saturday League 5-Wicket Hauls</h2>
+      <span class="count" id="bowlingCount"></span>
+    </div>
+    <div class="card"><div class="table-scroll"><table>
+      <thead><tr><th>Year</th><th>Player</th><th>Team</th><th>Opposition</th><th class="num">Figures</th></tr></thead>
+      <tbody id="bowlingBody"><tr class="no-records"><td colspan="5">Loading…</td></tr></tbody>
+    </table></div></div>
+  </div>
+
+</div>
+
+<script src="js/duplicate-flags.js"></script>
+<script>
+const TEAMS = ['1st XI', '2nd XI', '3rd XI'];
+
+function centuries(battingRows){
+  return battingRows
+    .filter((r) => TEAMS.includes(r.team_name) && r.competition_type === 'League' && r.runs >= 100)
+    .map((r) => ({
+      score: r.runs,
+      notOut: r.how_out === 'not out' || r.how_out === 'retired not out',
+      name: r.name,
+      team: r.team_name,
+      opp: r.opposition_name,
+      venue: r.home_or_away,
+      year: r.season,
+      date: r.match_date,
+      matchId: r.match_public_id,
+    }))
+    // ISO yyyy-mm-dd dates sort correctly as plain strings - oldest first,
+    // so scrolling down the table reads as moving forward through the
+    // club's history toward the present. The Year column shown to the
+    // reader is just the display value - date is still what decides the
+    // actual order, so same-season entries stay in the right sequence
+    // rather than an arbitrary one.
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function fiveWicketHauls(bowlingRows){
+  return bowlingRows
+    .filter((r) => TEAMS.includes(r.team_name) && r.competition_type === 'League' && r.wickets >= 5)
+    .map((r) => ({
+      figures: `${r.wickets}-${r.runs_conceded}`,
+      name: r.name,
+      team: r.team_name,
+      opp: r.opposition_name,
+      venue: r.home_or_away,
+      year: r.season,
+      date: r.match_date,
+      matchId: r.match_public_id,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function rowHtml(scoreCellHtml, r, flaggedNames){
+  return `<tr data-sc="scorecard.html?id=${r.matchId}">
+    <td>${r.year}</td>
+    <td><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
+    <td>${r.team}</td>
+    <td>${r.opp}${r.venue ? ` <span class="venue-tag">(${r.venue})</span>` : ''}</td>
+    ${scoreCellHtml}
+  </tr>`;
+}
+function battingRowHtml(r, flaggedNames){
+  return rowHtml(`<td class="score">${r.score}${r.notOut ? '<span class="not-out">*</span>' : ''}</td>`, r, flaggedNames);
+}
+function bowlingRowHtml(r, flaggedNames){
+  return rowHtml(`<td class="score">${r.figures}</td>`, r, flaggedNames);
+}
+
+// Full history in one continuous scroll is a lot to load into (132+
+// five-wicket hauls) - instead of paging *forward* from the oldest entry
+// (which would mean clicking through years of history just to reach last
+// week), each board opens already at the present and "Show NN earlier"
+// reveals the previous batch above it, so the reader pages *backward* into
+// the past from wherever they currently are.
+const PAGE_SIZE = 20;
+
+// { rows, from } - rows is the full oldest-to-newest list; `from` is the
+// index of the first currently-rendered row (rows.slice(from) is what's on
+// screen), starting at rows.length - PAGE_SIZE so the initial view is the
+// most recent batch.
+const boards = {
+  batting: { rows: [], from: 0 },
+  bowling: { rows: [], from: 0 },
+};
+
+// "Innings" is both singular and plural in cricket - no century/centuries
+// or haul/hauls split needed here, unlike a normal English count.
+function renderBoard(key, tbodyId, countId, rowFn, flaggedNames){
+  const board = boards[key];
+  const visible = board.rows.slice(board.from);
+  const remaining = board.from;
+
+  document.getElementById(countId).textContent = `${board.rows.length} innings`;
+
+  const rowsHtml = visible.length
+    ? visible.map((r) => rowFn(r, flaggedNames)).join('')
+    : `<tr class="no-records"><td colspan="5">None recorded yet.</td></tr>`;
+  const earlierRow = remaining > 0
+    ? `<tr class="load-earlier" data-key="${key}"><td colspan="5">↑ Show ${Math.min(PAGE_SIZE, remaining)} earlier</td></tr>`
+    : '';
+  document.getElementById(tbodyId).innerHTML = earlierRow + rowsHtml;
+}
+
+function renderAll(flaggedNames){
+  renderBoard('batting', 'battingBody', 'battingCount', battingRowHtml, flaggedNames);
+  renderBoard('bowling', 'bowlingBody', 'bowlingCount', bowlingRowHtml, flaggedNames);
+}
+
+let currentFlaggedNames = new Map();
+document.getElementById('battingBody').addEventListener('click', (e) => handleBodyClick(e, 'batting'));
+document.getElementById('bowlingBody').addEventListener('click', (e) => handleBodyClick(e, 'bowling'));
+function handleBodyClick(e, key){
+  if (e.target.closest('a')) return; // let the player link itself navigate natively
+  if (e.target.closest('tr.load-earlier')) {
+    boards[key].from = Math.max(0, boards[key].from - PAGE_SIZE);
+    renderAll(currentFlaggedNames);
+    return;
+  }
+  const tr = e.target.closest('tr[data-sc]');
+  if (tr) window.location.href = tr.dataset.sc;
+}
+
+const TAB_TITLES = { batting: 'Barwell CC - Batting Honours', bowling: 'Barwell CC - Bowling Honours' };
+function activateTab(tab){
+  document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
+  document.getElementById('battingSection').style.display = tab === 'batting' ? '' : 'none';
+  document.getElementById('bowlingSection').style.display = tab === 'bowling' ? '' : 'none';
+  document.title = TAB_TITLES[tab];
+}
+document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+activateTab('batting');
+
+Promise.all([
+  fetch('data/batting.json').then((r) => r.json()),
+  fetch('data/bowling.json').then((r) => r.json()),
+  DuplicateFlags.fetchFlaggedNames(),
+]).then(([battingRows, bowlingRows, flaggedNames]) => {
+  currentFlaggedNames = flaggedNames;
+  boards.batting.rows = centuries(battingRows);
+  boards.batting.from = Math.max(0, boards.batting.rows.length - PAGE_SIZE);
+  boards.bowling.rows = fiveWicketHauls(bowlingRows);
+  boards.bowling.from = Math.max(0, boards.bowling.rows.length - PAGE_SIZE);
+  renderAll(flaggedNames);
+}).catch((err) => {
+  document.getElementById('battingBody').innerHTML = '<tr class="no-records"><td colspan="5">Could not load honours data.</td></tr>';
+  console.error(err);
+});
+
+function getEffectiveTheme(){
+  var explicit = document.documentElement.getAttribute('data-theme');
+  if (explicit) return explicit;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('barwellcc-theme', next);
+});
+</script>
+</body>
+</html>
