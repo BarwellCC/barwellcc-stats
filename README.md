@@ -180,6 +180,19 @@ convention usually marks two different people (commonly a parent and
 child both playing for the club), so it needs a human who knows the club
 to confirm either way, not a spelling-similarity guess.
 
+Not every candidate is a real duplicate — plenty are just two different
+people who share a surname or have similar-sounding first names,
+especially when both already have their own distinct Play-Cricket ID.
+Reviewing one of those shouldn't mean re-litigating it on every future
+rebuild: recording it in **`data/duplicate-dismissals.json`** tells
+`scripts/findDuplicatePlayers.js` to stop flagging that specific pair
+(matched by name, not id, so the decision survives a full DB rebuild same
+as a merge does):
+
+```json
+{ "a": "Jack Smith", "b": "Jacob Smith", "reason": "Both have their own Play-Cricket ID, confirmed two different people" }
+```
+
 See `test/playerMerges.test.js` for the matching/merge-application tests.
 
 ## Known behaviors & gotchas

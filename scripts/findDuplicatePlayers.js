@@ -1,6 +1,47 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const { matchPlayers, splitPlayCricketName } = require('./matchPlayersCore');
 const { normalize } = require('./normalizeName');
+
+const DISMISSALS_PATH = path.join(__dirname, '..', 'data', 'duplicate-dismissals.json');
+
+// The `players` table isn't only Barwell people: Play-Cricket's per-innings
+// batting/bowling cards get inserted unfiltered by scripts/insertMatch.js
+// (unlike the historic scraper, which deliberately only ever captures our
+// own side - see scripts/parseScorecardPage.js), so an opposition batter or
+// bowler from any given match ends up with their own real `players` row and
+// real figures too - just never displayed, since every query that builds
+// the public site filters by is_us. A squad member who was selected but
+// never actually got a real knock/spell (only a "did not bat" row, or a
+// player row orphaned by a Play-Cricket scorecard correction wiping their
+// only innings) is the same problem from a different angle. Duplicate
+// detection has to apply the identical "genuine Barwell involvement" test
+// buildPlayers() in scripts/buildStatic.js uses for the public player list
+// - otherwise it flags (and appearance-counts) opposition players and
+// no-shows as if they were real candidates for a Barwell merge decision.
+const BARWELL_PLAYERS_SQL = `
+  SELECT DISTINCT p.id, p.name, p.play_cricket_id FROM players p
+  WHERE p.name NOT IN ('Unsure', 'Selected member not found', 'A.N. Other') AND (EXISTS (
+    SELECT 1 FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
+    WHERE bp.player_id = p.id AND i.is_us = 1
+      AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')
+  ) OR EXISTS (
+    SELECT 1 FROM bowling_performances bw JOIN innings i ON i.id = bw.innings_id
+    WHERE bw.player_id = p.id AND i.is_us = 0
+  ))
+`;
+
+// A pair a human has already looked at and confirmed are two different real
+// people (see data/duplicate-dismissals.json) shouldn't keep coming back on
+// every rebuild just because their names still look similar - name-based,
+// not id-based, since the whole point is "these two people," which outlives
+// any particular players.id.
+function loadDismissedPairs() {
+  if (!fs.existsSync(DISMISSALS_PATH)) return new Set();
+  const dismissals = JSON.parse(fs.readFileSync(DISMISSALS_PATH, 'utf8'));
+  return new Set(dismissals.map((d) => [d.a, d.b].sort().join('|')));
+}
 
 // "Geoff Hines Jnr" vs "Geoff Hines Snr" (etc.) never reaches the
 // nickname/fuzzy checks below - splitPlayCricketName treats "Jnr"/"Snr" as
@@ -80,13 +121,17 @@ function findDuplicatePlayers(players) {
     }
   }
   candidates.push(...findGenerationalSuffixCandidates(players, seen));
-  return candidates.sort((x, y) => y.confidence - x.confidence);
+
+  const dismissed = loadDismissedPairs();
+  const notDismissed = candidates.filter((c) => !dismissed.has([c.a.name, c.b.name].sort().join('|')));
+
+  return notDismissed.sort((x, y) => y.confidence - x.confidence);
 }
 
 function main() {
   const { openDb } = require('./db');
   const db = openDb();
-  const players = db.prepare('SELECT id, name, play_cricket_id FROM players').all();
+  const players = db.prepare(BARWELL_PLAYERS_SQL).all();
   const candidates = findDuplicatePlayers(players);
   db.close();
 
@@ -106,4 +151,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { findDuplicatePlayers };
+module.exports = { findDuplicatePlayers, BARWELL_PLAYERS_SQL };

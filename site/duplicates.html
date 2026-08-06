@@ -68,6 +68,10 @@
   .merged-row{ display:flex; align-items:center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
   .merged-row:last-child{ border-bottom: none; }
   .merged-row .arrow{ color: var(--ink-soft); }
+  .dismissed-row{ padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .dismissed-row:last-child{ border-bottom: none; }
+  .dismissed-row .names{ font-weight: 600; }
+  .dismissed-row .reason{ margin-top: 2px; }
   .flag-note{ background: var(--danger-bg); color: var(--danger); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 18px; }
   .loading{ color: var(--ink-soft); padding: 12px 0; }
   footer{ margin-top: 40px; font-size: 12px; color: var(--ink-soft); }
@@ -92,6 +96,9 @@
 
   <h2>Already merged</h2>
   <div id="merged" class="card"><div class="loading">Loading…</div></div>
+
+  <h2>Confirmed not duplicates</h2>
+  <div id="dismissed" class="card"><div class="loading">Loading…</div></div>
 
   <footer>Rule of thumb: when one spelling has a Play-Cricket ID and the other doesn't, the Play-Cricket spelling wins as canonical.</footer>
 </div>
@@ -120,7 +127,8 @@ function suggestedRule(a, b) {
 Promise.all([
   fetch('data/duplicate-candidates.json').then((r) => r.json()),
   fetch('data/player-merges.json').then((r) => r.json()),
-]).then(([candidates, merges]) => {
+  fetch('data/duplicate-dismissals.json').then((r) => r.json()),
+]).then(([candidates, merges, dismissals]) => {
   const candidatesEl = document.getElementById('candidates');
   if (candidates.length === 0) {
     candidatesEl.innerHTML = '<div class="empty">No likely duplicates found right now.</div>';
@@ -148,9 +156,22 @@ Promise.all([
       ).join('')
     ).join('');
   }
+
+  const dismissedEl = document.getElementById('dismissed');
+  if (dismissals.length === 0) {
+    dismissedEl.innerHTML = '<div class="empty">Nothing dismissed yet.</div>';
+  } else {
+    dismissedEl.innerHTML = dismissals.map((d) =>
+      '<div class="dismissed-row">' +
+        '<div class="names">' + d.a + ' <span style="color:var(--ink-soft); font-weight:400;">vs</span> ' + d.b + '</div>' +
+        (d.reason ? '<div class="reason">' + d.reason + '</div>' : '') +
+      '</div>'
+    ).join('');
+  }
 }).catch((err) => {
   document.getElementById('candidates').innerHTML = '<div class="empty">Could not load data/duplicate-candidates.json — run <code>npm run build-static</code> first.</div>';
   document.getElementById('merged').innerHTML = '';
+  document.getElementById('dismissed').innerHTML = '';
   console.error(err);
 });
 </script>

@@ -1,0 +1,5 @@
+[
+  { "a": "Joe Steane", "b": "Jon Steane", "reason": "Confirmed two different people" },
+  { "a": "Josh Moore", "b": "Joseph Moore", "reason": "Confirmed two different people despite the Josh/Joseph nickname pairing" },
+  { "a": "Geoff Hines", "b": "Geoff Hines Snr", "reason": "Confirmed different people - Geoff Hines is the same person as Geoff Hines Jnr (merged), Snr is a separate relative" }
+]

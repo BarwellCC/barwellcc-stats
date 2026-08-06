@@ -12,9 +12,10 @@ const fs = require('fs');
 const path = require('path');
 const { openDb } = require('./db');
 const { describeResult } = require('../site/js/cricket-calc');
-const { findDuplicatePlayers } = require('./findDuplicatePlayers');
+const { findDuplicatePlayers, BARWELL_PLAYERS_SQL } = require('./findDuplicatePlayers');
 
 const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
+const DISMISSALS_PATH = path.join(__dirname, '..', 'data', 'duplicate-dismissals.json');
 
 const OUT_DIR = process.env.STATIC_OUT_DIR || path.join(__dirname, '..', 'site', 'data');
 
@@ -259,15 +260,29 @@ function buildPlayers(db) {
 
 // Feeds site/duplicates.html (an unlinked, staff-only page - see README.md's
 // "Duplicate player names" section): every remaining likely-duplicate pair
-// among current `players` rows, with appearance counts so a human can judge
-// which side is the real record without needing direct DB access. Merges
-// already confirmed in data/player-merges.json are folded into one row by
-// scripts/db.js before this runs, so they don't show up here again.
+// among genuine Barwell `players` rows (BARWELL_PLAYERS_SQL excludes
+// opposition players and no-shows - see its comment in
+// scripts/findDuplicatePlayers.js for why the raw table isn't safe to scan
+// directly), with appearance counts so a human can judge which side is the
+// real record without needing direct DB access. Merges already confirmed in
+// data/player-merges.json are folded into one row by scripts/db.js before
+// this runs, so they don't show up here again.
 function buildDuplicateCandidates(db) {
-  const players = db.prepare('SELECT id, name, play_cricket_id FROM players').all();
+  const players = db.prepare(BARWELL_PLAYERS_SQL).all();
+  // Counts only the appearances that actually count as "playing for
+  // Barwell" (same is_us direction as BARWELL_PLAYERS_SQL) - a raw
+  // COUNT(*) across both tables would silently include any opposition-side
+  // rows still sitting on this player_id, overstating how real a low-count
+  // candidate looks.
   const appearances = (id) => {
-    const bat = db.prepare('SELECT COUNT(*) c FROM batting_performances WHERE player_id = ?').get(id).c;
-    const bowl = db.prepare('SELECT COUNT(*) c FROM bowling_performances WHERE player_id = ?').get(id).c;
+    const bat = db.prepare(
+      `SELECT COUNT(*) c FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
+       WHERE bp.player_id = ? AND i.is_us = 1 AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')`
+    ).get(id).c;
+    const bowl = db.prepare(
+      `SELECT COUNT(*) c FROM bowling_performances bw JOIN innings i ON i.id = bw.innings_id
+       WHERE bw.player_id = ? AND i.is_us = 0`
+    ).get(id).c;
     return bat + bowl;
   };
   const candidates = findDuplicatePlayers(players).map((c) => ({
@@ -290,6 +305,16 @@ function buildPlayerMerges() {
   return merges.length;
 }
 
+// Copies the confirmed-not-duplicate list into site/data/ purely for
+// display on site/duplicates.html - the file under data/ is what
+// scripts/findDuplicatePlayers.js actually reads to stop re-flagging a
+// pair someone has already reviewed and ruled out.
+function buildDismissedDuplicates() {
+  const dismissals = fs.existsSync(DISMISSALS_PATH) ? JSON.parse(fs.readFileSync(DISMISSALS_PATH, 'utf8')) : [];
+  writeJson('duplicate-dismissals.json', dismissals);
+  return dismissals.length;
+}
+
 function buildStatic() {
   const db = openDb();
 
@@ -306,13 +331,14 @@ function buildStatic() {
   const playerCount = buildPlayers(db);
   const duplicateCount = buildDuplicateCandidates(db);
   const mergeCount = buildPlayerMerges();
+  const dismissedCount = buildDismissedDuplicates();
 
   db.close();
 
   console.log(
     `Wrote ${OUT_DIR}: ${matchCount} matches, ${scorecardCount} scorecards, ` +
     `${battingCount} batting rows, ${bowlingCount} bowling rows, ${fieldingCount} fielding rows, ${playerCount} players, ` +
-    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges.`
+    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges, ${dismissedCount} dismissed pairs.`
   );
 }
 
