@@ -12,7 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const { openDb } = require('./db');
 const { describeResult } = require('../site/js/cricket-calc');
-const { findDuplicatePlayers, BARWELL_PLAYERS_SQL } = require('./findDuplicatePlayers');
+const { findDuplicatePlayers, findSuspiciousNames, promoteSuspiciousToPairs, getBarwellPlayers } = require('./findDuplicatePlayers');
+const { excludedPlayersClause } = require('./excludedPlayers');
 
 const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
 const DISMISSALS_PATH = path.join(__dirname, '..', 'data', 'duplicate-dismissals.json');
@@ -176,6 +177,7 @@ function buildScorecards(db) {
 // several different real (or entirely absent) people collapsed into one
 // fake "player" if left unfiltered, same as "Unsure".
 function buildBattingRows(db) {
+  const { clause, params } = excludedPlayersClause('p.name');
   const rows = db
     .prepare(
       // batting_position is only ever populated for playcricket-sourced rows
@@ -190,9 +192,9 @@ function buildBattingRows(db) {
        JOIN innings i ON i.id = bp.innings_id
        JOIN matches m ON m.id = i.match_id
        JOIN players p ON p.id = bp.player_id
-       WHERE i.is_us = 1 AND p.name != 'Unsure' AND p.name != 'Selected member not found' AND p.name != 'A.N. Other'`
+       WHERE i.is_us = 1 AND ${clause}`
     )
-    .all();
+    .all(...params);
   // match_id (the autoincrement PK) stays internal, used only to count
   // distinct matches per player - match_public_id is the one exposed in
   // scorecard links, see publicMatchId() above for why they need to differ.
@@ -208,6 +210,7 @@ function buildBowlingRows(db) {
   // bowling_performances on an innings belongs to the team that did NOT bat
   // that innings - our figures live on the innings where the opposition
   // batted (is_us = 0).
+  const { clause, params } = excludedPlayersClause('p.name');
   const rows = db
     .prepare(
       `SELECT bw.player_id, p.name, bw.overs, bw.maidens, bw.runs_conceded, bw.wickets,
@@ -217,9 +220,9 @@ function buildBowlingRows(db) {
        JOIN innings i ON i.id = bw.innings_id
        JOIN matches m ON m.id = i.match_id
        JOIN players p ON p.id = bw.player_id
-       WHERE i.is_us = 0 AND p.name != 'Unsure' AND p.name != 'Selected member not found' AND p.name != 'A.N. Other'`
+       WHERE i.is_us = 0 AND ${clause}`
     )
-    .all();
+    .all(...params);
   for (const r of rows) {
     r.match_public_id = publicMatchId(r);
     delete r.play_cricket_match_id;
@@ -238,24 +241,26 @@ function buildFieldingRows(db) {
   // before (see scripts/scrapeAllHistoric.js's batting-row sanity check) -
   // no reason to let that data sit in the published JSON at all, silently
   // relying on a downstream function never reading it.
+  const { clause, params } = excludedPlayersClause('p.name');
   const rows = db
     .prepare(
       `SELECT fp.player_id, fp.catches, fp.stumpings, m.id AS match_id, m.team_name, m.season, m.competition_type
        FROM fielding_performances fp
        JOIN matches m ON m.id = fp.match_id
        JOIN players p ON p.id = fp.player_id
-       WHERE p.name != 'Unsure' AND p.name != 'Selected member not found' AND p.name != 'A.N. Other'`
+       WHERE ${clause}`
     )
-    .all();
+    .all(...params);
   writeJson('fielding.json', rows);
   return rows.length;
 }
 
 function buildPlayers(db) {
+  const { clause, params } = excludedPlayersClause('p.name');
   const rows = db
     .prepare(
       `SELECT DISTINCT p.name FROM players p
-       WHERE p.name != 'Unsure' AND p.name != 'Selected member not found' AND p.name != 'A.N. Other' AND (EXISTS (
+       WHERE ${clause} AND (EXISTS (
          SELECT 1 FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
          WHERE bp.player_id = p.id AND i.is_us = 1
            AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')
@@ -265,7 +270,7 @@ function buildPlayers(db) {
        ))
        ORDER BY p.name`
     )
-    .all();
+    .all(...params);
   const names = rows.map((r) => r.name);
   writeJson('players.json', names);
   return names.length;
@@ -273,49 +278,148 @@ function buildPlayers(db) {
 
 // Feeds site/duplicates.html (an unlinked, staff-only page - see README.md's
 // "Duplicate player names" section): every remaining likely-duplicate pair
-// among genuine Barwell `players` rows (BARWELL_PLAYERS_SQL excludes
+// among genuine Barwell `players` rows (getBarwellPlayers() excludes
 // opposition players and no-shows - see its comment in
 // scripts/findDuplicatePlayers.js for why the raw table isn't safe to scan
 // directly), with appearance counts so a human can judge which side is the
 // real record without needing direct DB access. Merges already confirmed in
 // data/player-merges.json are folded into one row by scripts/db.js before
 // this runs, so they don't show up here again.
-function buildDuplicateCandidates(db) {
-  const players = db.prepare(BARWELL_PLAYERS_SQL).all();
-  // Counts only the appearances that actually count as "playing for
-  // Barwell" (same is_us direction as BARWELL_PLAYERS_SQL) - a raw
-  // COUNT(*) across both tables would silently include any opposition-side
-  // rows still sitting on this player_id, overstating how real a low-count
-  // candidate looks.
-  const appearances = (id) => {
-    const bat = db.prepare(
-      `SELECT COUNT(*) c FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
-       WHERE bp.player_id = ? AND i.is_us = 1 AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')`
-    ).get(id).c;
-    const bowl = db.prepare(
-      `SELECT COUNT(*) c FROM bowling_performances bw JOIN innings i ON i.id = bw.innings_id
-       WHERE bw.player_id = ? AND i.is_us = 0`
-    ).get(id).c;
-    return bat + bowl;
-  };
-  const candidates = findDuplicatePlayers(players).map((c) => ({
-    a: { ...c.a, appearances: appearances(c.a.id) },
-    b: { ...c.b, appearances: appearances(c.b.id) },
+// Counts only the appearances that actually count as "playing for Barwell"
+// (same is_us direction as getBarwellPlayers()) - a raw COUNT(*) across both
+// tables would silently include any opposition-side rows still sitting on
+// this player_id, overstating how real a low-count candidate looks. Shared
+// by buildDuplicateCandidates() and buildSuspiciousNames() below.
+function appearancesFor(db, id) {
+  const bat = db.prepare(
+    `SELECT COUNT(*) c FROM batting_performances bp JOIN innings i ON i.id = bp.innings_id
+     WHERE bp.player_id = ? AND i.is_us = 1 AND (bp.how_out IS NULL OR bp.how_out != 'did not bat')`
+  ).get(id).c;
+  const bowl = db.prepare(
+    `SELECT COUNT(*) c FROM bowling_performances bw JOIN innings i ON i.id = bw.innings_id
+     WHERE bw.player_id = ? AND i.is_us = 0`
+  ).get(id).c;
+  return bat + bowl;
+}
+
+// A suspicious name (see findSuspiciousNames() below) with at least one
+// same-surname candidate is really a possible-duplicate lead, so it's
+// folded into the same "Needs review" pair list buildDuplicateCandidates()
+// writes - see promoteSuspiciousToPairs()'s own comment for why. Only a
+// suspicious name with nothing to compare against stays in "Suspicious
+// names" (buildSuspiciousNames() below). Both functions need this same
+// split, so it's computed once and passed to each rather than recomputed.
+function buildDuplicateCandidates(db, promoted) {
+  const players = getBarwellPlayers(db);
+  // Two different shapes here: a normal pair from findDuplicatePlayers()
+  // (single `b`) vs a promoted "incomplete name" entry from
+  // promoteSuspiciousToPairs() (a `candidates` array, possibly more than
+  // one - see that function's own comment for why they stay grouped as one
+  // entry rather than fanning out).
+  const pairs = findDuplicatePlayers(players).map((c) => ({
+    a: { ...c.a, appearances: appearancesFor(db, c.a.id) },
+    b: { ...c.b, appearances: appearancesFor(db, c.b.id) },
     matchType: c.matchType,
     confidence: c.confidence,
     reason: c.reason,
   }));
+  const promotedWithAppearances = promoted.map((c) => ({
+    a: { ...c.a, appearances: appearancesFor(db, c.a.id) },
+    candidates: c.candidates.map((cand) => ({ ...cand, appearances: appearancesFor(db, cand.id) })),
+    matchType: c.matchType,
+    confidence: c.confidence,
+    reason: c.reason,
+  }));
+  const candidates = [...pairs, ...promotedWithAppearances];
   writeJson('duplicate-candidates.json', candidates);
   return candidates.length;
 }
 
+// Feeds site/duplicates.html's "Suspicious names" section - individual
+// players table rows that don't look like a real name at all (test/
+// placeholder data, or Play-Cricket's bare "- Surname" convention for a
+// scorer-added player with no first name on record) and have no plausible
+// fuller-name candidate to compare against - a different problem from
+// buildDuplicateCandidates() above (two rows for the same real person).
+// See scripts/findDuplicatePlayers.js's findSuspiciousNames() for the
+// detection rules.
+function buildSuspiciousNames(db, stillSuspicious) {
+  const suspicious = stillSuspicious.map((s) => ({
+    player: { ...s.player, appearances: appearancesFor(db, s.player.id) },
+    reason: s.reason,
+    candidates: [],
+  }));
+  writeJson('suspicious-names.json', suspicious);
+  return suspicious.length;
+}
+
 // Copies the confirmed-merges config into site/data/ purely so
 // site/duplicates.html can show "already merged" for transparency - the file
-// under data/ is what scripts/db.js actually reads to apply merges.
-function buildPlayerMerges() {
+// under data/ is what scripts/db.js actually reads to apply merges. Each
+// alias already carries its own play_cricket_id (see
+// data/player-merges.json and scripts/db.js's aliasName() comment for why -
+// an alias row no longer exists in the DB to look this up live once the
+// merge has been applied, so it has to be recorded at merge time instead).
+// The canonical side's badge, unlike the aliases', *is* looked up live -
+// it's a real, current players row, so there's no reason to let its
+// recorded play_cricket_id/appearances go stale in the checked-in config.
+//
+// The master (canonical) side always shows its own live state plainly - a
+// real Play-Cricket id if it has one, "Historic" if it doesn't - and never
+// repeats or hides behind a special label. Every alias's id is judged
+// against that one live id:
+//   - matches it -> this alias *is* where that id came from (or is simply
+//     the same real record under a different scorecard entry) - showing
+//     the number again would be a redundant repeat of the master's own
+//     badge, so it's labelled "Renamed" instead.
+//   - a different real id -> a genuinely separate Play-Cricket record that
+//     didn't win the merge (see scripts/db.js's applyPlayerMerges() - a
+//     SQLite UNIQUE constraint on play_cricket_id means only one id can
+//     survive per merged identity, and load order, not correctness,
+//     decides which). Kept visible for traceability but flagged "unlinked"
+//     so it doesn't read as an equally-valid Play-Cricket link.
+//   - no id at all, and it's the *only* alias, and the master has no id
+//     either -> there's nothing here to disambiguate at all (no Play-Cricket
+//     record on either side, no other alias it could be confused with) -
+//     it's unambiguously the same single historic record under a fuller
+//     name, so "Renamed" fits just as well as the id-matching case above
+//     (e.g. "G Orton" -> "George Orton"). Doesn't apply once there's more
+//     than one alias (e.g. "B Kilbourne"/"B Kilbourn" -> "Billy Kilbourne")
+//     - that's genuinely reconciling several recorded variants, not just
+//     relabelling one.
+//   - no id at all, otherwise -> a plain historic-only name variant.
+function buildPlayerMerges(db) {
   const merges = fs.existsSync(MERGES_PATH) ? JSON.parse(fs.readFileSync(MERGES_PATH, 'utf8')) : [];
-  writeJson('player-merges.json', merges);
-  return merges.length;
+  const enriched = merges.map((m) => {
+    // The canonical side is normally just a name string, but can also be
+    // `{ name, play_cricket_id }` when scripts/db.js's applyPlayerMerges()
+    // needs to force a specific id onto the merged row (see its own
+    // comment) - same two-shape pattern as an alias.
+    const canonicalName = typeof m.canonical === 'string' ? m.canonical : m.canonical.name;
+    const canonicalRow = db.prepare('SELECT id, play_cricket_id FROM players WHERE name = ?').get(canonicalName);
+    const canonicalPcId = canonicalRow ? canonicalRow.play_cricket_id : null;
+    const onlyUnlinkedAlias = !canonicalPcId && m.aliases.length === 1;
+    const aliases = m.aliases.map((a) => {
+      const alias = typeof a === 'string' ? { name: a, play_cricket_id: null } : a;
+      const matchesMaster = Boolean(alias.play_cricket_id) && alias.play_cricket_id === canonicalPcId;
+      const renamed = matchesMaster || (onlyUnlinkedAlias && !alias.play_cricket_id);
+      return {
+        ...alias,
+        renamed,
+        adHoc: Boolean(alias.play_cricket_id) && !matchesMaster,
+      };
+    });
+    return {
+      canonical: {
+        name: canonicalName,
+        play_cricket_id: canonicalPcId,
+        appearances: canonicalRow ? appearancesFor(db, canonicalRow.id) : 0,
+      },
+      aliases,
+    };
+  });
+  writeJson('player-merges.json', enriched);
+  return enriched.length;
 }
 
 // Copies the confirmed-not-duplicate list into site/data/ purely for
@@ -434,8 +538,13 @@ function buildStatic() {
   const bowlingCount = buildBowlingRows(db);
   const fieldingCount = buildFieldingRows(db);
   const playerCount = buildPlayers(db);
-  const duplicateCount = buildDuplicateCandidates(db);
-  const mergeCount = buildPlayerMerges();
+
+  const { promoted, stillSuspicious } = promoteSuspiciousToPairs(
+    findSuspiciousNames(getBarwellPlayers(db))
+  );
+  const duplicateCount = buildDuplicateCandidates(db, promoted);
+  const suspiciousCount = buildSuspiciousNames(db, stillSuspicious);
+  const mergeCount = buildPlayerMerges(db);
   const dismissedCount = buildDismissedDuplicates();
   const reconciliation = buildReconciliation(db);
 
@@ -444,7 +553,7 @@ function buildStatic() {
   console.log(
     `Wrote ${OUT_DIR}: ${matchCount} matches, ${scorecardCount} scorecards, ` +
     `${battingCount} batting rows, ${bowlingCount} bowling rows, ${fieldingCount} fielding rows, ${playerCount} players, ` +
-    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges, ${dismissedCount} dismissed pairs, ` +
+    `${duplicateCount} duplicate candidates, ${suspiciousCount} suspicious names, ${mergeCount} confirmed merges, ${dismissedCount} dismissed pairs, ` +
     (reconciliation
       ? `Play-Cricket reconciliation: ${reconciliation.total_games} historic-era games, ${reconciliation.linked_games} linked, ${reconciliation.unlinked_games} unlinked (${reconciliation.mismatches} open mismatches, ${reconciliation.import_errors} import errors).`
       : 'no Play-Cricket reconciliation report yet.')

@@ -50,6 +50,23 @@ function loadPlayerMerges() {
   return playerMergesCache;
 }
 
+// Each alias is either a plain string (the original shape) or
+// `{ name, play_cricket_id }` (richer shape, added so site/duplicates.html
+// can show a real Play-Cricket-id/"Historic" badge per alias in the
+// "Already merged" list, same as everywhere else on that page) - normalise
+// once so every reader below doesn't need to know both shapes exist.
+function aliasName(alias) {
+  return typeof alias === 'string' ? alias : alias.name;
+}
+
+// The canonical side of a merge entry is normally just a name string, but
+// can also be `{ name, play_cricket_id }` when a specific id needs to be
+// forced onto it (see applyPlayerMerges() below) - same two-shape pattern
+// as an alias, for the same reason.
+function canonicalName(canonical) {
+  return typeof canonical === 'string' ? canonical : canonical.name;
+}
+
 // Redirects a known alias straight to its canonical name before any lookup
 // or insert happens, so a confirmed duplicate never gets its own `players`
 // row again - important because data/barwellcc.db is gitignored and
@@ -58,7 +75,7 @@ function loadPlayerMerges() {
 // database.
 function canonicalPlayerName(name) {
   for (const { canonical, aliases } of loadPlayerMerges()) {
-    if (aliases.includes(name)) return canonical;
+    if (aliases.some((alias) => aliasName(alias) === name)) return canonicalName(canonical);
   }
   return name;
 }
@@ -72,14 +89,40 @@ function canonicalPlayerName(name) {
 // the alias row has already been folded in.
 function applyPlayerMerges(db) {
   for (const { canonical, aliases } of loadPlayerMerges()) {
+    const cName = canonicalName(canonical);
     for (const alias of aliases) {
-      const aliasRow = db.prepare('SELECT id FROM players WHERE name = ?').get(alias);
+      const name = aliasName(alias);
+      const aliasRow = db.prepare('SELECT id FROM players WHERE name = ?').get(name);
       if (!aliasRow) continue;
-      const canonicalId = getOrCreatePlayer(db, canonical, null);
+      // Pass the alias's own known Play-Cricket id (if any) through, so a
+      // canonical row that doesn't have one yet gets backfilled from a
+      // real registration, rather than always passing null.
+      const playCricketId = typeof alias === 'object' ? alias.play_cricket_id : null;
+      const canonicalId = getOrCreatePlayer(db, cName, playCricketId || null);
       db.prepare('UPDATE batting_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
       db.prepare('UPDATE bowling_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
       db.prepare('UPDATE fielding_performances SET player_id = ? WHERE player_id = ?').run(canonicalId, aliasRow.id);
       db.prepare('DELETE FROM players WHERE id = ?').run(aliasRow.id);
+    }
+
+    // A canonical with an explicit `play_cricket_id` (object shape) forces
+    // that id onto the merged row, overriding whatever id it happened to
+    // pick up along the way. Needed because getOrCreatePlayer() only ever
+    // backfills an id onto a row that doesn't have one yet (first past the
+    // post wins) - loading order across matches, not which id is actually
+    // correct, otherwise decides which of several real Play-Cricket records
+    // survives (see data/player-merges.json's Peter Tillin entry: the 2013
+    // "P Tillan" shorthand entry loads before the 2016 match that properly
+    // records the full "Peter Tillin" name, so its id would silently win by
+    // default without this override).
+    if (typeof canonical === 'object' && canonical.play_cricket_id) {
+      const row = db.prepare('SELECT id, play_cricket_id FROM players WHERE name = ?').get(cName);
+      if (row && row.play_cricket_id !== canonical.play_cricket_id) {
+        const clash = db.prepare('SELECT id FROM players WHERE play_cricket_id = ?').get(canonical.play_cricket_id);
+        if (!clash) {
+          db.prepare('UPDATE players SET play_cricket_id = ? WHERE id = ?').run(canonical.play_cricket_id, row.id);
+        }
+      }
     }
   }
 }

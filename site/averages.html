@@ -683,7 +683,8 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 Promise.all([
   fetch('data/reconciliation.json').then(r => r.json()).catch(() => null),
   fetch('data/duplicate-candidates.json').then(r => r.json()).catch(() => []),
-]).then(([reconciliation, duplicates]) => {
+  fetch('data/suspicious-names.json').then(r => r.json()).catch(() => []),
+]).then(([reconciliation, duplicates, suspiciousNames]) => {
   const items = [];
   if (reconciliation && reconciliation.mismatches && reconciliation.mismatches.length > 0) {
     items.push({ label: 'Mismatches need review', href: 'reconcile.html#mismatchesSection' });
@@ -691,8 +692,8 @@ Promise.all([
   if (reconciliation && reconciliation.import_errors && reconciliation.import_errors.length > 0) {
     items.push({ label: 'Import errors need review', href: 'reconcile.html#importErrorsSection' });
   }
-  if (duplicates && duplicates.length > 0) {
-    items.push({ label: 'Possible duplicate players', href: 'duplicates.html' });
+  if ((duplicates && duplicates.length > 0) || (suspiciousNames && suspiciousNames.length > 0)) {
+    items.push({ label: 'Player records need review', href: 'duplicates.html' });
   }
   if (items.length === 0) return;
 

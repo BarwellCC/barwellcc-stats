@@ -57,23 +57,31 @@
   .badge{ display:inline-flex; align-items:center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .badge-pc{ background: var(--ok-bg); color: var(--ok); }
   .badge-none{ background: var(--head-bg); color: var(--ink-soft); }
+  .badge-adhoc{ background: var(--warn-bg); color: var(--warn); }
+  .badge-renamed{ background: var(--head-bg); color: var(--accent); }
   .match-type{ font-size: 11.5px; padding: 3px 9px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
   .match-type.nickname{ background: var(--ok-bg); color: var(--ok); }
   .match-type.fuzzy{ background: var(--warn-bg); color: var(--warn); }
   .match-type.suffix{ background: var(--danger-bg); color: var(--danger); }
+  .match-type.incomplete{ background: var(--head-bg); color: var(--accent); }
   .reason{ color: var(--ink-soft); font-size: 12.5px; flex-basis: 100%; }
   .rule{ font-size: 12.5px; color: var(--ink-soft); flex-basis: 100%; }
   .rule strong{ color: var(--ink); }
   .empty{ padding: 28px 18px; color: var(--ink-soft); text-align:center; }
-  .merged-row{ display:flex; align-items:center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .merged-row{ display:flex; align-items:center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; flex-wrap: wrap; }
   .merged-row:last-child{ border-bottom: none; }
   .merged-row .arrow{ color: var(--ink-soft); }
+  .merged-aliases{ display:flex; align-items:center; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; }
+  .merged-aliases .alias-sep{ color: var(--ink-soft); }
+  .merged-canonical{ display:flex; align-items:center; gap: 6px; }
   .dismissed-row{ padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
   .dismissed-row:last-child{ border-bottom: none; }
   .dismissed-row .names{ font-weight: 600; }
   .dismissed-row .reason{ margin-top: 2px; }
   .flag-note{ background: var(--danger-bg); color: var(--danger); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; margin-bottom: 18px; }
   .loading{ color: var(--ink-soft); padding: 12px 0; }
+  .suspicious-row{ border-bottom: 1px solid var(--line); padding: 14px 18px; display:flex; align-items:center; gap: 16px; flex-wrap: wrap; }
+  .suspicious-row:last-child{ border-bottom:none; }
   footer{ margin-top: 40px; font-size: 12px; color: var(--ink-soft); }
 </style>
 </head>
@@ -92,6 +100,15 @@
   <h2>Needs review</h2>
   <div id="candidates" class="card"><div class="loading">Loading…</div></div>
 
+  <h2>Suspicious names</h2>
+  <p class="subtitle" style="margin: -4px 0 10px;">
+    Player records that don't look like a real, complete name — a bare
+    surname, or just an initial — and have no other player on file to
+    plausibly match against. A record with a plausible match instead shows
+    up in "Needs review" above.
+  </p>
+  <div id="suspicious" class="card"><div class="loading">Loading…</div></div>
+
   <h2>Already merged</h2>
   <div id="merged" class="card"><div class="loading">Loading…</div></div>
 
@@ -102,10 +119,31 @@
 </div>
 
 <script>
+// A record with no Play-Cricket id always reads "Historic", whichever side
+// of a merge it's on - see scripts/buildStatic.js's buildPlayerMerges() for
+// how the master (canonical) side's own live state is derived.
 function badge(p) {
-  return p.play_cricket_id
-    ? '<span class="badge badge-pc">Play-Cricket #' + p.play_cricket_id + '</span>'
-    : '<span class="badge badge-none">historic only</span>';
+  // An alias flagged renamed has either the exact same play_cricket_id the
+  // master record ended up using (that alias *is* where the master's real
+  // id came from, or is simply the same record under a different scorecard
+  // entry), or - when neither side has any id at all and this is the only
+  // alias - there's nothing to disambiguate in the first place, so it's
+  // unambiguously the same historic record under a fuller name. Either way,
+  // repeating "Historic" or the id here would just echo the master's own
+  // badge, so it's labelled "Renamed" instead.
+  if (p.renamed) return '<span class="badge badge-renamed">Renamed</span>';
+  // An alias flagged adHoc has its own play_cricket_id, but it's not the id
+  // the merged record actually ended up using - most often because
+  // Play-Cricket had already minted it for an unmatched free-text scorecard
+  // entry, not because it's a second real, reusable profile. Keep the
+  // number visible (it's still useful for tracing exactly where the record
+  // came from) but mark it as not matching the master record, so it
+  // doesn't read as an equally-valid Play-Cricket link.
+  if (p.adHoc) {
+    return '<span class="badge badge-adhoc">Play-Cricket #' + p.play_cricket_id + ' (unlinked)</span>';
+  }
+  if (p.play_cricket_id) return '<span class="badge badge-pc">Play-Cricket #' + p.play_cricket_id + '</span>';
+  return '<span class="badge badge-none">Historic</span>';
 }
 
 function nameTag(p) {
@@ -126,33 +164,80 @@ Promise.all([
   fetch('data/duplicate-candidates.json').then((r) => r.json()),
   fetch('data/player-merges.json').then((r) => r.json()),
   fetch('data/duplicate-dismissals.json').then((r) => r.json()),
-]).then(([candidates, merges, dismissals]) => {
+  fetch('data/suspicious-names.json').then((r) => r.json()),
+]).then(([candidates, merges, dismissals, suspicious]) => {
   const candidatesEl = document.getElementById('candidates');
   if (candidates.length === 0) {
     candidatesEl.innerHTML = '<div class="empty">No likely duplicates found right now.</div>';
   } else {
     candidatesEl.innerHTML = candidates.map((c) => {
+      // "incomplete" entries (an initial-only or bare-surname name matched
+      // against one or more same-surname candidates - see
+      // scripts/findDuplicatePlayers.js's promoteSuspiciousToPairs()) have
+      // a `candidates` array instead of a single `b` - several same-surname
+      // options (e.g. "C Baker" against five different Bakers) stay
+      // together in one card rather than one card per option. They also
+      // don't fit suggestedRule()'s "whichever side has a Play-Cricket ID
+      // wins" logic - both sides commonly have their own distinct
+      // Play-Cricket ID even when they really are the same person (a bare/
+      // incomplete record gets its own ID same as a normal one), so that
+      // heuristic would wrongly wave this off as "unlikely to be the same
+      // person."
+      if (c.candidates) {
+        const options = c.candidates.map((cand) => nameTag(cand)).join('<span class="vs">or</span>');
+        return '<div class="pair">' +
+          '<div class="pair-names">' + nameTag(c.a) + '<span class="vs">could be</span>' + options + '</div>' +
+          '<span class="match-type ' + c.matchType + '">' + c.matchType + ' &middot; ' + Math.round(c.confidence * 100) + '%</span>' +
+          '<div class="reason">' + c.reason + '</div>' +
+          '<div class="rule">Incomplete name matched by surname only — confirm by hand which (if any) option this really is before merging.</div>' +
+          '</div>';
+      }
       const suffixNote = /\b(jnr|jr|snr|sr)\b/i.test(c.a.name) || /\b(jnr|jr|snr|sr)\b/i.test(c.b.name);
+      const rule = suffixNote
+        ? '<div class="rule" style="color:var(--danger)">Jnr/Snr suffix present — this conventionally marks two different people (e.g. father &amp; son). Confirm with someone who knows the club before merging.</div>'
+        : '<div class="rule">' + suggestedRule(c.a, c.b) + '</div>';
       return '<div class="pair">' +
         '<div class="pair-names">' + nameTag(c.a) + '<span class="vs">vs</span>' + nameTag(c.b) + '</div>' +
         '<span class="match-type ' + c.matchType + '">' + c.matchType + ' &middot; ' + Math.round(c.confidence * 100) + '%</span>' +
         '<div class="reason">' + c.reason + '</div>' +
-        (suffixNote
-          ? '<div class="rule" style="color:var(--danger)">Jnr/Snr suffix present — this conventionally marks two different people (e.g. father &amp; son). Confirm with someone who knows the club before merging.</div>'
-          : '<div class="rule">' + suggestedRule(c.a, c.b) + '</div>') +
+        rule +
         '</div>';
     }).join('');
+  }
+
+  const suspiciousEl = document.getElementById('suspicious');
+  if (suspicious.length === 0) {
+    suspiciousEl.innerHTML = '<div class="empty">No suspicious names found right now.</div>';
+  } else {
+    // A suspicious name with a plausible candidate is promoted into
+    // "Needs review" above instead (see scripts/buildStatic.js) - anything
+    // left here genuinely has nothing to compare against.
+    suspiciousEl.innerHTML = suspicious.map((s) =>
+      '<div class="suspicious-row">' +
+        nameTag(s.player) +
+        '<div class="reason">' + s.reason + '</div>' +
+      '</div>'
+    ).join('');
   }
 
   const mergedEl = document.getElementById('merged');
   if (merges.length === 0) {
     mergedEl.innerHTML = '<div class="empty">No merges confirmed yet.</div>';
   } else {
-    mergedEl.innerHTML = merges.map((m) =>
-      m.aliases.map((alias) =>
-        '<div class="merged-row"><span>' + alias + '</span><span class="arrow">&rarr;</span><strong>' + m.canonical + '</strong></div>'
-      ).join('')
-    ).join('');
+    // One row per canonical (master) record, not one per alias - several
+    // aliases folded into the same person (e.g. "B Kilbourne" and
+    // "B Kilbourn" both → "Billy Kilbourne") read as one line, all pointing
+    // at the same master record, rather than repeating it.
+    mergedEl.innerHTML = merges.map((m) => {
+      const aliasesHtml = m.aliases
+        .map((a) => '<span>' + a.name + ' ' + badge(a) + '</span>')
+        .join('<span class="alias-sep">,</span>');
+      return '<div class="merged-row">' +
+        '<div class="merged-aliases">' + aliasesHtml + '</div>' +
+        '<span class="arrow">&rarr;</span>' +
+        '<span class="merged-canonical"><strong>' + m.canonical.name + '</strong> ' + badge(m.canonical) + '</span>' +
+        '</div>';
+    }).join('');
   }
 
   const dismissedEl = document.getElementById('dismissed');
@@ -168,6 +253,7 @@ Promise.all([
   }
 }).catch((err) => {
   document.getElementById('candidates').innerHTML = '<div class="empty">Could not load data/duplicate-candidates.json — run <code>npm run build-static</code> first.</div>';
+  document.getElementById('suspicious').innerHTML = '';
   document.getElementById('merged').innerHTML = '';
   document.getElementById('dismissed').innerHTML = '';
   console.error(err);

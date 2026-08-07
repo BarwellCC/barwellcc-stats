@@ -239,6 +239,16 @@ as a merge does):
 { "a": "Jack Smith", "b": "Jacob Smith", "reason": "Both have their own Play-Cricket ID, confirmed two different people" }
 ```
 
+`site/duplicates.html` also has a **"Suspicious names"** section, a different problem from the above: a single `players` row that doesn't look like a real, complete name at all (a bare `"- Surname"` — Play-Cricket's own convention when a scorer adds someone without picking a name from the squad list — or just an initial, e.g. `"A Jones"`). `scripts/findDuplicatePlayers.js`'s `findSuspiciousNames()` detects these; `promoteSuspiciousToPairs()` then checks every other player for a same-surname match — if it finds one (or several), that name is folded into "Needs review" above instead (one card per suspicious name, even with multiple candidates, not one per candidate) since it's really a possible-duplicate lead just found by a different heuristic. Only a name with genuinely nothing to compare against stays in "Suspicious names".
+
+A suspicious name confirmed to have no real identity worth tracking (not a duplicate of anyone, just bad data) goes in **`data/excluded-players.json`** — a plain array of exact names:
+
+```json
+["O Vadher", "M Dagia"]
+```
+
+`scripts/excludedPlayers.js` reads this on every query that lists genuine Barwell players (batting/bowling/fielding rows, the players list, duplicate detection) and excludes them, the same way `"Unsure"`/`"A.N. Other"`/`"Selected member not found"` (Play-Cricket's own placeholder values for an unidentified player) already are.
+
 See `test/playerMerges.test.js` for the matching/merge-application tests.
 
 ## Known behaviors & gotchas

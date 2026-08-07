@@ -1,81 +1,210 @@
 [
   {
-    "canonical": "Daniel King",
+    "canonical": { "name": "Daniel King", "play_cricket_id": 5271579 },
     "aliases": [
-      "Dan King"
+      { "name": "Dan King", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Tom Middleton",
     "aliases": [
-      "Thomas Middleton"
+      { "name": "Thomas Middleton", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Adrian Baker",
     "aliases": [
-      "Ady Baker"
+      { "name": "Ady Baker", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Tom Wright",
     "aliases": [
-      "Tommy Wright"
+      { "name": "Tommy Wright", "play_cricket_id": null },
+      { "name": "- Wright", "play_cricket_id": 2469845 }
     ]
   },
   {
     "canonical": "Udhayakumar Vellingiri",
     "aliases": [
-      "UdhayaKumar Vellingiri"
+      { "name": "UdhayaKumar Vellingiri", "play_cricket_id": null }
     ]
   },
   {
-    "canonical": "Oliver Richings",
+    "canonical": { "name": "Oliver Richings", "play_cricket_id": 5745167 },
     "aliases": [
-      "Ollie Richings"
+      { "name": "Ollie Richings", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Joe Ennis",
     "aliases": [
-      "Joseph Ennis"
+      { "name": "Joseph Ennis", "play_cricket_id": null }
     ]
   },
   {
-    "canonical": "Ashley Washington",
+    "canonical": { "name": "Ashley Washington", "play_cricket_id": 4123278 },
     "aliases": [
-      "Ash Washington"
+      { "name": "Ash Washington", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Billy Kilbourne",
     "aliases": [
-      "B Kilbourne",
-      "B Kilbourn"
+      { "name": "B Kilbourne", "play_cricket_id": null },
+      { "name": "B Kilbourn", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Geoff Hines",
     "aliases": [
-      "Geoff Hines Jnr"
+      { "name": "Geoff Hines Jnr", "play_cricket_id": null }
     ]
   },
   {
     "canonical": "Andy Clarke",
     "aliases": [
-      "Andrew Clarke"
+      { "name": "Andrew Clarke", "play_cricket_id": null }
     ]
   },
   {
-    "canonical": "Elliott Moule",
+    "canonical": { "name": "Elliott Moule", "play_cricket_id": 1576746 },
     "aliases": [
-      "Elliot Moule"
+      { "name": "Elliot Moule", "play_cricket_id": null },
+      { "name": "F Moule", "play_cricket_id": 2533253 }
     ]
   },
   {
     "canonical": "Garry Roach",
     "aliases": [
-      "Gary Roach"
+      { "name": "Gary Roach", "play_cricket_id": null }
+    ]
+  },
+  {
+    "canonical": "Dave Lee",
+    "aliases": [
+      { "name": "D Lee", "play_cricket_id": 647301 }
+    ]
+  },
+  {
+    "canonical": "Joe Steane",
+    "aliases": [
+      { "name": "J Steade", "play_cricket_id": 2533250 }
+    ]
+  },
+  {
+    "canonical": "Kyle Newall",
+    "aliases": [
+      { "name": "K Newell", "play_cricket_id": 2483675 }
+    ]
+  },
+  {
+    "canonical": "Lee Skene",
+    "aliases": [
+      { "name": "L Sheane", "play_cricket_id": 2533252 }
+    ]
+  },
+  {
+    "canonical": { "name": "Peter Tillin", "play_cricket_id": 4953920 },
+    "aliases": [
+      { "name": "P Tillan", "play_cricket_id": 1667053 },
+      { "name": "Pete Tillin", "play_cricket_id": null }
+    ]
+  },
+  {
+    "canonical": "George Orton",
+    "aliases": [
+      { "name": "G Orton", "play_cricket_id": null }
+    ]
+  },
+  {
+    "canonical": "Aiden Page",
+    "aliases": [
+      { "name": "H Page", "play_cricket_id": 4013998 }
+    ]
+  },
+  {
+    "canonical": "Steve Knox",
+    "aliases": [
+      { "name": "S Knox", "play_cricket_id": 6421931 }
+    ]
+  },
+  {
+    "canonical": "Ricky Baker",
+    "aliases": [
+      { "name": "R Baker", "play_cricket_id": 1822610 }
+    ]
+  },
+  {
+    "canonical": "Paul Norris",
+    "aliases": [
+      { "name": "P Norris", "play_cricket_id": 1394188 }
+    ]
+  },
+  {
+    "canonical": { "name": "William Bradley", "play_cricket_id": 1023075 },
+    "aliases": [
+      { "name": "S Bradley", "play_cricket_id": 1372074 }
+    ]
+  },
+  {
+    "canonical": "Joe Stack",
+    "aliases": [
+      { "name": "J Stack", "play_cricket_id": 2533256 }
+    ]
+  },
+  {
+    "canonical": "Sam Fisher",
+    "aliases": [
+      { "name": "S Fisher", "play_cricket_id": 2483673 }
+    ]
+  },
+  {
+    "canonical": "Alex Norris",
+    "aliases": [
+      { "name": "A Norris", "play_cricket_id": 2483677 }
+    ]
+  },
+  {
+    "canonical": "Guy Norris",
+    "aliases": [
+      { "name": "G Norris", "play_cricket_id": 2483674 }
+    ]
+  },
+  {
+    "canonical": "Danny Moran",
+    "aliases": [
+      { "name": "- Moran", "play_cricket_id": 2469849 }
+    ]
+  },
+  {
+    "canonical": { "name": "Adam Stapleford-Jones", "play_cricket_id": 5412560 },
+    "aliases": [
+      { "name": "A Jones", "play_cricket_id": 755827 }
+    ]
+  },
+  {
+    "canonical": "Lee Richardson",
+    "aliases": [
+      { "name": "L Richardson", "play_cricket_id": 2333270 }
+    ]
+  },
+  {
+    "canonical": { "name": "Josh Moore", "play_cricket_id": 199389 },
+    "aliases": [
+      { "name": "- Moore", "play_cricket_id": 1002780 }
+    ]
+  },
+  {
+    "canonical": "Ben Wyatt",
+    "aliases": [
+      { "name": "B Wyatt", "play_cricket_id": 1372072 }
+    ]
+  },
+  {
+    "canonical": { "name": "Clint Baker", "play_cricket_id": 1624798 },
+    "aliases": [
+      { "name": "C Baker", "play_cricket_id": 199326 }
     ]
   }
 ]
