@@ -1,23 +1,23 @@
 [
   {
     "play_cricket_match_id": 3014939,
-    "decision": "keep_ours",
-    "note": "2017-05-20 1st XI v Bardon Hill: Play-Cricket's own innings data (Bardon Hill 117 all out in 41.4 overs, Barwell 119/1 in 21.4 overs) matches our site exactly and only supports a Barwell win by 9 wickets - but Play-Cricket's result field credits Bardon Hill as \"Won Batting Second\", which is self-contradictory against its own scorecard (Bardon Hill batted first). Verified as a Play-Cricket data-entry error, not a scraping error - our site's result is correct. Left unlinked since the Play-Cricket page itself shows the wrong winner."
+    "decision": "link_anyway",
+    "note": "2017-05-20 1st XI v Bardon Hill: Play-Cricket's own innings data (Bardon Hill 117 all out in 41.4 overs, Barwell 119/1 in 21.4 overs) matches our site exactly and only supports a Barwell win by 9 wickets - but Play-Cricket's result field credits Bardon Hill as \"Won Batting Second\", which is self-contradictory against its own scorecard (Bardon Hill batted first). Verified as a Play-Cricket data-entry error, not a scraping error - our site's result is correct. Originally left unlinked since the Play-Cricket page itself shows the wrong winner; user later asked to link anyway (id 576), keeping our result."
   },
   {
     "play_cricket_match_id": 6212431,
-    "decision": "keep_ours",
-    "note": "2024-05-19 Sunday XI v Bedworth (Friendly): our site has a full, internally-consistent scorecard (Barwell 218/6, Bedworth 204/7, margin 14 runs matches the stated result exactly). Play-Cricket's entry has no score data at all (blank runs/wickets both innings) - just a bare \"Bedworth CC - Sunday XI - Won\" flag - and disagrees on who was even home, not just the result. Looks like a thin stub entered independently by Bedworth's side rather than a properly scored record. User confirmed keeping our result. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2024-05-19 Sunday XI v Bedworth (Friendly): our site has a full, internally-consistent scorecard (Barwell 218/6, Bedworth 204/7, margin 14 runs matches the stated result exactly). Play-Cricket's entry has no score data at all (blank runs/wickets both innings) - just a bare \"Bedworth CC - Sunday XI - Won\" flag - and disagrees on who was even home, not just the result. Looks like a thin stub entered independently by Bedworth's side rather than a properly scored record. User confirmed keeping our result; later asked to link anyway (id 1115)."
   },
   {
     "play_cricket_match_id": 1790666,
-    "decision": "keep_ours",
-    "note": "2012-09-08 2nd XI v Loughborough Carillion 2: scores agree exactly between both sources (Loughborough 216/6 off 45 overs, Barwell 144/7 off 45 overs, not bowled out, target not reached). Play-Cricket's API just reports a flat 'W' for Loughborough; our site recorded 'Drawn - losing draw 5 points', a real league bonus-points convention for this scenario (batting side not all out, target not reached = a draw for points purposes, not a categorical loss) that Play-Cricket's single-letter result code doesn't capture. User confirmed 'losing draw' was the correct league terminology at the time. Kept our (more specific) description. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2012-09-08 2nd XI v Loughborough Carillion 2: scores agree exactly between both sources (Loughborough 216/6 off 45 overs, Barwell 144/7 off 45 overs, not bowled out, target not reached). Play-Cricket's API just reports a flat 'W' for Loughborough; our site recorded 'Drawn - losing draw 5 points', a real league bonus-points convention for this scenario (batting side not all out, target not reached = a draw for points purposes, not a categorical loss) that Play-Cricket's single-letter result code doesn't capture. User confirmed 'losing draw' was the correct league terminology at the time; kept our (more specific) description, later asked to link anyway (id 308)."
   },
   {
     "play_cricket_match_id": 1936186,
-    "decision": "equivalent",
-    "note": "2013-09-14 2nd XI v Hinckley Amateur 2: scores agree exactly (130 all out both sides). Our site says Tied, Play-Cricket says Draw (with a broken '(o runs)' margin template, suggesting no distinct Tied category on their end for this competition). User confirmed 'Match Drawn' and 'Tie' were treated as the same result in this league at the time - not a real disagreement, just different labels for the same outcome. Kept our 'Tied' label as-is. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2013-09-14 2nd XI v Hinckley Amateur 2: scores agree exactly (130 all out both sides). Our site says Tied, Play-Cricket says Draw (with a broken '(o runs)' margin template, suggesting no distinct Tied category on their end for this competition). User confirmed 'Match Drawn' and 'Tie' were treated as the same result in this league at the time - not a real disagreement, just different labels for the same outcome. Kept our 'Tied' label as-is; later asked to link anyway (id 381)."
   },
   {
     "play_cricket_match_id": 4491367,
@@ -36,23 +36,23 @@
   },
   {
     "play_cricket_match_id": 2082771,
-    "decision": "equivalent",
-    "note": "2013-06-13 Midweek XI v Nuneaton 2: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2013-06-13 Midweek XI v Nuneaton 2: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. Originally left unlinked (no scorecard to show either way); user later asked to link all 8 remaining unlinked matches anyway (id 336), keeping our 'Cancelled' label."
   },
   {
     "play_cricket_match_id": 2082774,
-    "decision": "equivalent",
-    "note": "2013-06-27 Midweek XI v Burbage: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2013-06-27 Midweek XI v Burbage: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. Originally left unlinked; user later asked to link all 8 remaining unlinked matches anyway (id 342), keeping our 'Cancelled' label."
   },
   {
     "play_cricket_match_id": 5851257,
-    "decision": "equivalent",
-    "note": "2023-07-13 Midweek 2nd XI v Wolvey CC: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2023-07-13 Midweek 2nd XI v Wolvey CC: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. Originally left unlinked; user later asked to link all 8 remaining unlinked matches anyway (id 1045), keeping our 'Cancelled' label."
   },
   {
     "play_cricket_match_id": 6913569,
-    "decision": "equivalent",
-    "note": "2025-06-05 Midweek XI v Bedworth CC 1st XI: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled' ('Rained Off'). Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+    "decision": "link_anyway",
+    "note": "2025-06-05 Midweek XI v Bedworth CC 1st XI: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled' ('Rained Off'). Just a different word (Abandoned vs Cancelled) for the same non-event. Originally left unlinked; user later asked to link all 8 remaining unlinked matches anyway (id 1241), keeping our 'Cancelled' label."
   },
   {
     "play_cricket_match_id": 1674746,

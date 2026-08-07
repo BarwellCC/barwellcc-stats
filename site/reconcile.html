@@ -53,9 +53,6 @@
   .stat .l{ color: var(--ink-soft); font-size: 12px; }
   .stat.linked .n{ color: var(--ok); }
   .stat.unlinked .n{ color: var(--warn); }
-  .stat.mismatch .n{ color: var(--danger); }
-  .stat.imported .n{ color: var(--ok); }
-  .stat.norecord .n{ color: var(--warn); }
 
   .split-label{ display:flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
   .split-label strong{ color: var(--ok); font-weight: 700; }
@@ -71,12 +68,11 @@
   .mini-stat .n{ font-family:'Fraunces', serif; font-weight:700; font-size: 15px; color: var(--danger); }
   .mini-stat .l{ color: var(--ink-soft); font-size: 12.5px; }
   .mini-stat.imported .n{ color: var(--ok); }
-  .mini-stat.norecord .n{ color: var(--warn); }
 
   .group-label{ font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 0 0 8px; }
   .group-label:not(:first-child){ margin-top: 6px; }
 
-  details.section{ margin: 0 0 14px; }
+  .section{ margin: 0 0 14px; }
   details.section > summary{
     font-family:'Fraunces', serif; font-weight:600; font-size: 17px; margin: 0;
     cursor: pointer; list-style: none; display:flex; align-items:center; gap:10px; padding: 6px 0;
@@ -87,6 +83,14 @@
     content: '▸'; display:inline-block; color: var(--ink-soft); font-size: 12px; transition: transform .12s; width: 10px;
   }
   details.section[open] > summary::before{ transform: rotate(90deg); }
+  /* Issues (Mismatches/Import errors) aren't collapsible at all - always
+     visible, no minimise - so they're plain divs, not <details>. Same
+     heading look as the collapsible sections' <summary>, minus the
+     cursor/arrow affordances that imply "click to toggle". */
+  .section-heading{
+    font-family:'Fraunces', serif; font-weight:600; font-size: 17px; margin: 0;
+    display:flex; align-items:center; gap:10px; padding: 6px 0; scroll-margin-top: 64px;
+  }
   .count{ font-size: 12px; font-weight: 600; color: var(--ink-soft); background: var(--head-bg); border-radius: 999px; padding: 2px 10px; }
   .note{ color: var(--ink-soft); font-size: 12.5px; margin: 4px 0 10px; max-width: 76ch; }
 
@@ -122,11 +126,9 @@
 <div class="page">
   <h1>Play-Cricket reconciliation</h1>
   <p class="subtitle">
-    Unlinked staff page — not part of the site nav. Checks every historic
-    (2009–2025) match on this site against Play-Cricket's own record of the
-    same fixture. Produced by <code>npm run reconcile-playcricket</code> — to
-    refresh, re-run that, then <code>npm run dump-historic &amp;&amp; npm run
-    dump-playcricket-backfill &amp;&amp; npm run build-static</code>.
+    A data-quality check comparing every historic (2009–2025) match on this
+    site against Play-Cricket's own record of the same fixture, to help keep
+    results accurate and scorecards properly linked.
   </p>
   <p id="generated" class="generated"></p>
 
@@ -136,21 +138,21 @@
   <div id="miniStats" class="mini-stats"></div>
 
   <p class="group-label">Issues</p>
-  <details class="section" id="mismatchesSection">
-    <summary>Mismatches <span id="mismatchCount" class="count"></span></summary>
+  <div class="section" id="mismatchesSection">
+    <h2 class="section-heading">Mismatches <span id="mismatchCount" class="count"></span></h2>
     <p class="note">We have a match on this date for this team, but Play-Cricket disagrees on the result. Worth a look by eye — could be a scraping error, a Play-Cricket correction, or two different fixtures that happen to share a date.</p>
     <div id="mismatches" class="card"><div class="loading">Loading…</div></div>
-  </details>
+  </div>
 
-  <details class="section" id="importErrorsSection">
-    <summary>Import errors <span id="errorCount" class="count"></span></summary>
+  <div class="section" id="importErrorsSection">
+    <h2 class="section-heading">Import errors <span id="errorCount" class="count"></span></h2>
     <div id="importErrors" class="card"><div class="loading">Loading…</div></div>
-  </details>
+  </div>
 
   <p class="group-label">Detail</p>
   <details class="section" id="resolvedSection">
     <summary>Resolved <span id="resolvedCount" class="count"></span></summary>
-    <p class="note">Mismatches already checked by hand — decision and reasoning recorded in <code>data/reconciliation-resolutions.json</code>, so re-running the reconciliation doesn't keep asking about them.</p>
+    <p class="note">Mismatches already checked by hand, with the decision and reasoning kept on record, so re-running the check doesn't keep re-asking about them.</p>
     <div id="resolved" class="card"><div class="loading">Loading…</div></div>
   </details>
 
@@ -278,25 +280,26 @@ fetch('data/reconciliation.json').then(function(r){ return r.json(); }).then(fun
   document.getElementById('miniStats').innerHTML =
     '<div class="mini-stat" data-target="mismatchesSection"><span class="n">' + s.mismatches + '</span><span class="l">Mismatches</span></div>' +
     '<div class="mini-stat" data-target="importErrorsSection"><span class="n">' + s.import_errors + '</span><span class="l">Import errors</span></div>' +
-    '<div class="mini-stat imported" data-target="importedSection"><span class="n">' + s.imported + '</span><span class="l">Imported from PC</span></div>' +
-    '<div class="mini-stat norecord" data-target="noRecordSection"><span class="n">' + s.no_pc_record + '</span><span class="l">No PC record found</span></div>';
+    '<div class="mini-stat imported" data-target="resolvedSection"><span class="n">' + (s.resolved || 0) + '</span><span class="l">Resolved</span></div>' +
+    '<div class="mini-stat imported" data-target="importedSection"><span class="n">' + s.imported + '</span><span class="l">Imported from PC</span></div>';
   document.querySelectorAll('.mini-stat').forEach(function(el) {
     el.addEventListener('click', function() {
       var section = document.getElementById(el.getAttribute('data-target'));
-      if (section) { section.open = true; section.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      // Mismatches/Import errors are plain divs now (always open, no
+      // minimise) - only <details> elements have a real 'open' property.
+      if (section && 'open' in section) section.open = true;
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 
-  // Open by default: Mismatches (most actionable) and Resolved/Imported
-  // (small, worth seeing). Collapsed by default: No Play-Cricket record,
-  // since it can run into the hundreds and is informational, not actionable.
-  document.getElementById('mismatchesSection').open = true;
-  document.getElementById('resolvedSection').open = report.mismatches.length === 0;
-  document.getElementById('importedSection').open = true;
-  document.getElementById('importErrorsSection').open = report.import_errors.length > 0;
+  // Detail (Resolved/Imported/No Play-Cricket record) starts minimised -
+  // Issues (Mismatches/Import errors) aren't <details> at all any more, so
+  // there's nothing to open/close for those; they're always fully visible.
+  document.getElementById('resolvedSection').open = false;
+  document.getElementById('importedSection').open = false;
   document.getElementById('noRecordSection').open = false;
 
-  document.getElementById('mismatchCount').textContent = fill('mismatches', report.mismatches, mismatchRow, 'No open mismatches — everything\'s been resolved.');
+  document.getElementById('mismatchCount').textContent = fill('mismatches', report.mismatches, mismatchRow, 'No open mismatches.');
   document.getElementById('resolvedCount').textContent = fill('resolved', report.resolved || [], resolvedRow, 'Nothing resolved yet.');
   document.getElementById('importedCount').textContent = fill('imported', report.imported, importedRow, 'Nothing imported this run.');
   document.getElementById('errorCount').textContent = fill('importErrors', report.import_errors, errorRow, 'No import errors.');

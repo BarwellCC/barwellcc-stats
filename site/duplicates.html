@@ -81,12 +81,10 @@
 <div class="page">
   <h1>Duplicate players</h1>
   <p class="subtitle">
-    Unlinked staff page — not part of the site nav. Scans the current
-    <code>players</code> table for names that are likely the same person
-    under two spellings (nicknames, typos). This page can only <em>flag</em>
-    candidates — the site is static with no backend, so a merge is applied
-    by adding an entry to <code>data/player-merges.json</code> and
-    redeploying, not by clicking anything here.
+    A data-quality check for player records that may be the same person
+    recorded under two different spellings (a nickname or a typo).
+    Confirmed duplicates are merged into a single record so career stats
+    stay accurate.
   </p>
 
   <div id="flagNote"></div>

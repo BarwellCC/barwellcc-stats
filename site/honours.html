@@ -71,7 +71,7 @@
 
   /* ---- Shared site nav + theme toggle (identical across every page - see
      DESIGN.md; no shared template, so this block is kept in sync by hand) ---- */
-  .site-nav{ display:flex; align-items:stretch; background: var(--pitch-green-dark); margin: 0 -12px; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; }
+  .site-nav{ display:flex; align-items:stretch; background: var(--pitch-green-dark); margin: 0 -12px; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; position:relative; }
   .site-nav-links{ display:flex; flex:1; }
   .site-nav-links a{
     flex: 1 1 0; text-align:center; padding: 11px 8px;
@@ -87,6 +87,45 @@
   }
   .theme-toggle:hover{ color: var(--brass-bright); }
   .theme-toggle svg{ width:16px; height:16px; }
+  /* ---- Nav data-review flag - only appears when there's genuinely
+     something to review (mismatches/import errors from the Play-Cricket
+     reconciliation, or possible duplicate players); no counts shown here,
+     just a generic "needs review" signal - see site/reconcile.html and
+     site/duplicates.html for the actual detail. Hidden by default. ---- */
+  /* Desktop only - see the "LARGER SCREENS" media query below for the
+     min-width:640px override that actually shows it. Mobile's nav is
+     already tight (four links + theme toggle); a staff-only review nudge
+     isn't worth the extra crowding for the site's general (non-staff)
+     mobile visitors. */
+  .nav-flag-wrap{ display:none; position:relative; flex-shrink:0; }
+  .nav-flag{
+    display:flex; align-items:center; justify-content:center; position:relative;
+    width: 42px; height:100%; border:none; border-left: 1px solid rgba(255,255,255,0.1);
+    background: transparent; color: rgba(246,241,228,0.62); cursor:pointer; padding:0;
+  }
+  .nav-flag:hover{ color: var(--brass-bright); }
+  .nav-flag svg{ width:16px; height:16px; }
+  .nav-flag .dot{
+    position:absolute; top:9px; right:10px; width:7px; height:7px; border-radius:50%;
+    background: var(--loss); border: 1.5px solid var(--pitch-green-dark);
+  }
+  /* position:fixed and placed outside .site-nav in the DOM (not just
+     visually) - .site-nav has overflow:hidden for its own rounded bottom
+     corners, which would otherwise clip this dropdown regardless of its own
+     position scheme, since overflow clipping applies to descendants by DOM
+     containment, not by position/containing-block. top/right set by JS from
+     the flag button's getBoundingClientRect() on open. */
+  .nav-flag-menu{
+    position:fixed; z-index: 20; min-width: 210px;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 6px; display:none;
+  }
+  .nav-flag-menu.open{ display:block; }
+  .nav-flag-menu a{
+    display:block; padding: 9px 10px; border-radius: 6px; font-size: 12.5px; font-weight:600;
+    color: var(--ink); text-decoration:none;
+  }
+  .nav-flag-menu a:hover{ background: var(--head-bg); }
   .theme-toggle .icon-sun{ display:none; }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]) .theme-toggle .icon-sun{ display:block; }
@@ -170,6 +209,7 @@
     .page{ padding: 0 20px 64px; }
     .site-nav{ margin: 0 -20px; }
     .site-nav-links a{ flex: none; padding: 12px 26px; font-size: 12.5px; }
+    .nav-flag-wrap.visible{ display:flex; }
     .tabs{ gap:6px; }
     .tab{ flex: none; padding: 8px 18px; }
     .table-header{ padding: 15px 12px; }
@@ -190,11 +230,18 @@
       <a href="stats.html">Stats</a>
       <a href="honours.html" class="active">Honours</a>
     </div>
+    <div class="nav-flag-wrap" id="navFlagWrap">
+      <button type="button" class="nav-flag" id="navFlagBtn" aria-label="Data review needed" title="Data review needed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
     <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
   </nav>
+  <div class="nav-flag-menu" id="navFlagMenu"></div>
 
   <div class="tabs">
     <div class="tab active" data-tab="batting">Batting</div>
@@ -374,6 +421,53 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('barwellcc-theme', next);
 });
+
+// ---- Nav data-review flag: shows only if there's something a staff member
+// needs to look at (see site/reconcile.html and site/duplicates.html for
+// the actual detail) - no counts here on purpose, this nav is public.
+Promise.all([
+  fetch('data/reconciliation.json').then(r => r.json()).catch(() => null),
+  fetch('data/duplicate-candidates.json').then(r => r.json()).catch(() => []),
+]).then(([reconciliation, duplicates]) => {
+  const items = [];
+  if (reconciliation && reconciliation.mismatches && reconciliation.mismatches.length > 0) {
+    items.push({ label: 'Mismatches need review', href: 'reconcile.html#mismatchesSection' });
+  }
+  if (reconciliation && reconciliation.import_errors && reconciliation.import_errors.length > 0) {
+    items.push({ label: 'Import errors need review', href: 'reconcile.html#importErrorsSection' });
+  }
+  if (duplicates && duplicates.length > 0) {
+    items.push({ label: 'Possible duplicate players', href: 'duplicates.html' });
+  }
+  if (items.length === 0) return;
+
+  const wrap = document.getElementById('navFlagWrap');
+  const btn = document.getElementById('navFlagBtn');
+  const menu = document.getElementById('navFlagMenu');
+  menu.innerHTML = items.map((i) => `<a href="${i.href}">${i.label}</a>`).join('');
+  wrap.classList.add('visible');
+
+  function positionMenu() {
+    const r = btn.getBoundingClientRect();
+    menu.style.top = `${r.bottom + 6}px`;
+    menu.style.right = `${window.innerWidth - r.right}px`;
+  }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!menu.classList.contains('open')) positionMenu();
+    menu.classList.toggle('open');
+  });
+  window.addEventListener('resize', () => { if (menu.classList.contains('open')) positionMenu(); });
+  // Close on an outside click, but not a click on the menu's own links -
+  // otherwise removing the 'open' class (display:none) mid-click can cancel
+  // the link's own navigation in some browsers, since the element becomes
+  // hidden before the browser processes the pending "follow this link"
+  // action for the same click.
+  document.addEventListener('click', (e) => {
+    if (menu.contains(e.target)) return;
+    menu.classList.remove('open');
+  });
+}).catch(() => {});
 </script>
 </body>
 </html>
