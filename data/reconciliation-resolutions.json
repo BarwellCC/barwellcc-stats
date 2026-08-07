@@ -1,0 +1,122 @@
+[
+  {
+    "play_cricket_match_id": 3014939,
+    "decision": "keep_ours",
+    "note": "2017-05-20 1st XI v Bardon Hill: Play-Cricket's own innings data (Bardon Hill 117 all out in 41.4 overs, Barwell 119/1 in 21.4 overs) matches our site exactly and only supports a Barwell win by 9 wickets - but Play-Cricket's result field credits Bardon Hill as \"Won Batting Second\", which is self-contradictory against its own scorecard (Bardon Hill batted first). Verified as a Play-Cricket data-entry error, not a scraping error - our site's result is correct. Left unlinked since the Play-Cricket page itself shows the wrong winner."
+  },
+  {
+    "play_cricket_match_id": 6212431,
+    "decision": "keep_ours",
+    "note": "2024-05-19 Sunday XI v Bedworth (Friendly): our site has a full, internally-consistent scorecard (Barwell 218/6, Bedworth 204/7, margin 14 runs matches the stated result exactly). Play-Cricket's entry has no score data at all (blank runs/wickets both innings) - just a bare \"Bedworth CC - Sunday XI - Won\" flag - and disagrees on who was even home, not just the result. Looks like a thin stub entered independently by Bedworth's side rather than a properly scored record. User confirmed keeping our result. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 1790666,
+    "decision": "keep_ours",
+    "note": "2012-09-08 2nd XI v Loughborough Carillion 2: scores agree exactly between both sources (Loughborough 216/6 off 45 overs, Barwell 144/7 off 45 overs, not bowled out, target not reached). Play-Cricket's API just reports a flat 'W' for Loughborough; our site recorded 'Drawn - losing draw 5 points', a real league bonus-points convention for this scenario (batting side not all out, target not reached = a draw for points purposes, not a categorical loss) that Play-Cricket's single-letter result code doesn't capture. User confirmed 'losing draw' was the correct league terminology at the time. Kept our (more specific) description. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 1936186,
+    "decision": "equivalent",
+    "note": "2013-09-14 2nd XI v Hinckley Amateur 2: scores agree exactly (130 all out both sides). Our site says Tied, Play-Cricket says Draw (with a broken '(o runs)' margin template, suggesting no distinct Tied category on their end for this competition). User confirmed 'Match Drawn' and 'Tie' were treated as the same result in this league at the time - not a real disagreement, just different labels for the same outcome. Kept our 'Tied' label as-is. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 4491367,
+    "decision": "link_anyway",
+    "note": "2020-08-15 2nd XI v Mountsorrel Castle 2: no score data on either side (0/0, 0.0 overs both innings on Play-Cricket) so neither source can be verified against the other - a real fork between 'Won by default' (ours, implies a forfeit/walkover in our favour) and 'Abandoned' (Play-Cricket, implies no result). Mid-pandemic (Aug 2020) disrupted season. User chose to keep our site's 'Won by default' result but link to Play-Cricket anyway. matches.play_cricket_match_id set directly (id 759) and re-dumped via npm run dump-historic."
+  },
+  {
+    "play_cricket_match_id": 4491036,
+    "decision": "link_anyway",
+    "note": "2020-08-29 1st XI v Shepshed: scores agree (Shepshed all out 115 off 39.2 overs, Barwell 7/0 off only 5 overs when play stopped) - nowhere near a genuine tie, so our site's 'Abandoned' matches the actual scoreline; Play-Cricket's 'Tied' looks like a data-entry quirk (possibly a 2020 COVID-era playing-condition rule mapping an early stoppage onto the Tied code for points purposes). User chose to keep 'Abandoned' but link to Play-Cricket anyway. matches.play_cricket_match_id set directly (id 766) and re-dumped via npm run dump-historic."
+  },
+  {
+    "play_cricket_match_id": 6942962,
+    "decision": "false_positive",
+    "note": "2025-04-13 1st XI v Farnsfield CC (Cup): this mismatch is stale noise, not a real disagreement. Play-Cricket has TWO fixture entries for this date/team - #6942962, an early attempt abandoned after Farnsfield reached 93/5 off 10 overs, and #7080038, the real completed replay (Farnsfield 160/8 off 40, Barwell 88/10 off 23.1 - Lost by 72 runs, exactly matching our site). Both share the same (season, date, team) matching key, so the reconciliation script processed both: the abandoned one first (flagged as this mismatch), then the real one second (correctly matched and linked). matches.play_cricket_match_id is already correctly set to 7080038 - no data change needed, just marking this report entry as resolved."
+  },
+  {
+    "play_cricket_match_id": 2082771,
+    "decision": "equivalent",
+    "note": "2013-06-13 Midweek XI v Nuneaton 2: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 2082774,
+    "decision": "equivalent",
+    "note": "2013-06-27 Midweek XI v Burbage: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 5851257,
+    "decision": "equivalent",
+    "note": "2023-07-13 Midweek 2nd XI v Wolvey CC: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled'. Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 6913569,
+    "decision": "equivalent",
+    "note": "2025-06-05 Midweek XI v Bedworth CC 1st XI: confirmed 0/0, 0 overs both sides on Play-Cricket - genuinely no play happened, same as our 'Cancelled' ('Rained Off'). Just a different word (Abandoned vs Cancelled) for the same non-event. User confirmed no need to link since there's no scorecard to show either way. Left unlinked."
+  },
+  {
+    "play_cricket_match_id": 1674746,
+    "decision": "use_playcricket",
+    "note": "2011-08-11 Midweek XI v Alderman Smith: our site said 'Cancelled' (no consequence); Play-Cricket records a real result (W applied to Alderman Smith's team_id - a loss for us). The old club site used 'Cancelled' as a catch-all that didn't distinguish a genuine rain-off from a forfeit. User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'L', result_description to 'Barwell Cricket Club Lost - Conceded', play_cricket_match_id set and linked (id 252)."
+  },
+  {
+    "play_cricket_match_id": 2527471,
+    "decision": "use_playcricket",
+    "note": "2015-08-20 Midweek XI v Stockingford Haunchwood: Play-Cricket explicitly records 'Barwell CC - Midweek XI - Conceded' (result CON, 4-0 points against us). User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'CON', result_description to 'Barwell Cricket Club Conceded', play_cricket_match_id set and linked (id 501)."
+  },
+  {
+    "play_cricket_match_id": 2792149,
+    "decision": "use_playcricket",
+    "note": "2016-07-07 Midweek XI v Atherstone Town: Play-Cricket explicitly records 'Barwell CC - Midweek XI - Conceded' (result CON, 4-0 points against us). User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'CON', result_description to 'Barwell Cricket Club Conceded', play_cricket_match_id set and linked (id 542)."
+  },
+  {
+    "play_cricket_match_id": 2792177,
+    "decision": "use_playcricket",
+    "note": "2016-07-28 Midweek XI v Newbold Verdon: Play-Cricket explicitly records 'Barwell CC - Midweek XI - Conceded' (result CON, 4-0 points against us). User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'CON', result_description to 'Barwell Cricket Club Conceded', play_cricket_match_id set and linked (id 550)."
+  },
+  {
+    "play_cricket_match_id": 2792194,
+    "decision": "use_playcricket",
+    "note": "2016-08-11 Midweek XI v Atherstone Town (a second meeting the same season): Play-Cricket explicitly records 'Barwell CC - Midweek XI - Conceded' (result CON, 4-0 points against us). User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'CON', result_description to 'Barwell Cricket Club Conceded', play_cricket_match_id set and linked (id 556)."
+  },
+  {
+    "play_cricket_match_id": 2709376,
+    "decision": "use_playcricket",
+    "note": "2016-09-17 2nd XI v Sharnford: Play-Cricket's placeholder walkover scorecard (winner 1/0, loser 0/10, both 0.0 overs) credits Barwell with a win (30-0 points), not a cancellation - the opposition conceded to us. User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'W', result_description to 'Barwell Cricket Club Won - Opposition Conceded', play_cricket_match_id set and linked (id 569). No fabricated innings/batting data added - it's a placeholder walkover record on Play-Cricket's side too, not a real scorecard."
+  },
+  {
+    "play_cricket_match_id": 3023831,
+    "decision": "use_playcricket",
+    "note": "2017-08-12 2nd XI v Twycross 2: Play-Cricket's placeholder walkover scorecard (winner 1/0, loser 0/10, both 0.0 overs) credits Barwell with a win (30-0 points), not a cancellation - the opposition conceded to us. User agreed to adopt Play-Cricket's result. matches.result updated from 'C' to 'W', result_description to 'Barwell Cricket Club Won - Opposition Conceded', play_cricket_match_id set and linked (id 604). No fabricated innings/batting data added - it's a placeholder walkover record on Play-Cricket's side too, not a real scorecard."
+  },
+  {
+    "play_cricket_match_id": 1499782,
+    "decision": "use_playcricket",
+    "note": "2010-08-05 Midweek XI v Hinckley Amateur: our site had a thin stub (no result, 0/0, no players - the club's old site never had a scorecard for this one either). Play-Cricket has a full real scorecard (11 batters + 4 bowlers each side, Barwell 84/10 off 16, Hinckley 80/4 off 16, Won by 4 runs). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch (source='playcricket'), fielding re-derived, and folded into historic-data/playcricket-backfill.json."
+  },
+  {
+    "play_cricket_match_id": 1790747,
+    "decision": "use_playcricket",
+    "note": "2012-06-23 2nd XI v Loughborough Carillion 2: our site had a thin stub (no result, 0/0, no players). Play-Cricket has a full real scorecard (Barwell 63/10 off 28.5, Loughborough 167/9 off 45, Lost). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch, fielding re-derived, folded into historic-data/playcricket-backfill.json."
+  },
+  {
+    "play_cricket_match_id": 1936114,
+    "decision": "use_playcricket",
+    "note": "2013-09-07 2nd XI v Loughborough Carillion 2: our site had a thin stub (no result, 0/0, no players). Play-Cricket has a full real scorecard (Barwell 48/10 off 33, Loughborough 51/0 off 7.5, Lost). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch, fielding re-derived, folded into historic-data/playcricket-backfill.json."
+  },
+  {
+    "play_cricket_match_id": 3206724,
+    "decision": "use_playcricket",
+    "note": "2017-09-17 1st XI v Coventry & N Warwickshire: our site had a thin stub (no result, 0/0, no players). Play-Cricket has a real partial scorecard (Coventry 136/10 off 28, Barwell 40/3 off 14 when abandoned). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch, fielding re-derived, folded into historic-data/playcricket-backfill.json."
+  },
+  {
+    "play_cricket_match_id": 7124191,
+    "decision": "use_playcricket",
+    "note": "2025-05-11 Sunday XI v Braybrooke CC: our site had a thin stub (no result, 0/0, no players, and had the wrong opponent name - Play-Cricket's real record is against Fleckney Village CC Friendly XI, not Braybrooke CC). Play-Cricket has a full real scorecard (Barwell 288/10 off 38.3, Fleckney 266/10 off 39, Won). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch, fielding re-derived, folded into historic-data/playcricket-backfill.json."
+  },
+  {
+    "play_cricket_match_id": 7086447,
+    "decision": "use_playcricket",
+    "note": "2025-07-13 Sunday XI v Wanderers CC: our site had a thin stub (no result, 0/0, no players). Play-Cricket has a full real scorecard (Barwell 130/10 off 33.3, Wanderers 131/2 off 22.3, Lost). User agreed to a full replace-and-import. Old historic stub row deleted, replaced via parseMatchDetail/insertMatch, fielding re-derived, folded into historic-data/playcricket-backfill.json."
+  }
+]

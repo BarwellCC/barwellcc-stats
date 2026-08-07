@@ -66,7 +66,11 @@ function dumpHistoric(db) {
     return {
       match: {
         source: 'historic',
-        play_cricket_match_id: null,
+        // Reconciliation (scripts/reconcilePlayCricket.js) fills this in when
+        // a scraped match is confirmed to match a real Play-Cricket record -
+        // preserve it here so the link survives being checked into git and
+        // reloaded, rather than resetting to null on every re-dump.
+        play_cricket_match_id: m.play_cricket_match_id,
         season: m.season,
         match_date: m.match_date,
         match_time: m.match_time,

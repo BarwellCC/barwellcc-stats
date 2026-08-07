@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js && node test/buildStatic.test.js && node test/scrapeHistoric.test.js && node test/playerMerges.test.js",
+    "test": "node test/run-test.js && node test/matchPlayers.test.js && node test/deriveFielding.test.js && node test/resultMargin.test.js && node test/buildStatic.test.js && node test/scrapeHistoric.test.js && node test/playerMerges.test.js && node test/reconcilePlayCricket.test.js",
     "sync": "node scripts/sync-playcricket.js",
     "derive-fielding": "node scripts/deriveFielding.js",
     "build-static": "node scripts/buildStatic.js",
@@ -16,7 +16,10 @@
     "scrape-historic": "node scripts/scrapeAllHistoric.js",
     "dump-historic": "node scripts/dumpHistoricScraped.js",
     "load-historic": "node scripts/loadHistoricScraped.js",
-    "dev": "node scripts/loadHistoricScraped.js && node scripts/buildStatic.js && node server/index.js",
+    "reconcile-playcricket": "node scripts/reconcilePlayCricket.js",
+    "dump-playcricket-backfill": "node scripts/dumpPlayCricketBackfill.js",
+    "load-playcricket-backfill": "node scripts/loadPlayCricketBackfill.js",
+    "dev": "node scripts/loadHistoricScraped.js && node scripts/loadPlayCricketBackfill.js && node scripts/deriveFielding.js && node scripts/buildStatic.js && node server/index.js",
     "start": "node server/index.js"
   },
   "keywords": [],

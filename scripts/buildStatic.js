@@ -16,6 +16,8 @@ const { findDuplicatePlayers, BARWELL_PLAYERS_SQL } = require('./findDuplicatePl
 
 const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
 const DISMISSALS_PATH = path.join(__dirname, '..', 'data', 'duplicate-dismissals.json');
+const RECONCILIATION_PATH = path.join(__dirname, '..', 'historic-data', 'reconciliation-report.json');
+const RECONCILIATION_RESOLUTIONS_PATH = path.join(__dirname, '..', 'data', 'reconciliation-resolutions.json');
 
 const OUT_DIR = process.env.STATIC_OUT_DIR || path.join(__dirname, '..', 'site', 'data');
 
@@ -96,7 +98,7 @@ function buildScorecards(db) {
   const playedMatches = db
     .prepare(
       `SELECT id, source, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
-       home_or_away, competition_name, competition_type, result, our_total, opposition_total
+       home_or_away, competition_name, competition_type, result, result_description, our_total, opposition_total
        FROM matches
        WHERE result IS NOT NULL OR id IN (SELECT match_id FROM innings)`
     )
@@ -227,11 +229,22 @@ function buildBowlingRows(db) {
 }
 
 function buildFieldingRows(db) {
+  // Same "Unsure"/"Selected member not found"/"A.N. Other" exclusion as
+  // buildBattingRows/buildBowlingRows/buildPlayers - defense in depth. These
+  // rows already can't affect what's shown (site/js/cricket-calc.js's
+  // buildBatting() only ever reads a fielding tally for a player_id that
+  // also appears in the batting-rows Map, which excludes these names), but a
+  // bad scrape has produced hundreds of bogus "A.N. Other" fielding rows
+  // before (see scripts/scrapeAllHistoric.js's batting-row sanity check) -
+  // no reason to let that data sit in the published JSON at all, silently
+  // relying on a downstream function never reading it.
   const rows = db
     .prepare(
       `SELECT fp.player_id, fp.catches, fp.stumpings, m.id AS match_id, m.team_name, m.season, m.competition_type
        FROM fielding_performances fp
-       JOIN matches m ON m.id = fp.match_id`
+       JOIN matches m ON m.id = fp.match_id
+       JOIN players p ON p.id = fp.player_id
+       WHERE p.name != 'Unsure' AND p.name != 'Selected member not found' AND p.name != 'A.N. Other'`
     )
     .all();
   writeJson('fielding.json', rows);
@@ -315,6 +328,98 @@ function buildDismissedDuplicates() {
   return dismissals.length;
 }
 
+// Copies the checked-in Play-Cricket reconciliation report (produced by
+// scripts/reconcilePlayCricket.js - see README.md's "Play-Cricket
+// reconciliation" section) into site/data/, purely for
+// site/reconcile.html (an unlinked, staff-only page, same pattern as
+// site/duplicates.html) to display. Absent until that script has been run
+// at least once.
+//
+// data/reconciliation-resolutions.json holds human decisions on individual
+// mismatches (keyed by play_cricket_match_id, same pattern as
+// data/duplicate-dismissals.json) - a mismatch with a matching resolution is
+// split out of "open" into "resolved" here at display time, so working
+// through the list doesn't mean re-litigating the same 24 matches every time
+// scripts/reconcilePlayCricket.js is re-run. This never mutates
+// matches.play_cricket_match_id itself - a "keep_ours" resolution just stops
+// nagging about a mismatch that's been checked and explained; only actually
+// linking a match (when a resolution decides Play-Cricket was right) goes
+// through the normal DB update + npm run dump-historic.
+function buildReconciliation(db) {
+  if (!fs.existsSync(RECONCILIATION_PATH)) {
+    writeJson('reconciliation.json', null);
+    return null;
+  }
+  const report = JSON.parse(fs.readFileSync(RECONCILIATION_PATH, 'utf8'));
+  const resolutions = fs.existsSync(RECONCILIATION_RESOLUTIONS_PATH)
+    ? JSON.parse(fs.readFileSync(RECONCILIATION_RESOLUTIONS_PATH, 'utf8'))
+    : [];
+  const resolutionById = new Map(resolutions.map((r) => [r.play_cricket_match_id, r]));
+
+  const openMismatches = [];
+  const resolvedMismatches = [];
+  for (const m of report.mismatches) {
+    const resolution = resolutionById.get(m.play_cricket_match_id);
+    if (resolution) {
+      resolvedMismatches.push({ ...m, decision: resolution.decision, note: resolution.note });
+    } else {
+      openMismatches.push(m);
+    }
+  }
+
+  // "Linked"/"Unlinked" queried straight from the DB rather than added up
+  // from the report + resolutions bookkeeping above - some matches get
+  // linked by a manual DB patch when resolving a mismatch (see
+  // data/reconciliation-resolutions.json's "use_playcricket"/"link_anyway"
+  // entries), not just by the reconcile script's own linked/imported
+  // counters, so those two would drift out of sync with reality over time.
+  const [firstSeason, lastSeason] = report.seasons;
+  const totalGames = db
+    .prepare('SELECT COUNT(*) c FROM matches WHERE season BETWEEN ? AND ?')
+    .get(firstSeason, lastSeason).c;
+  const linkedGames = db
+    .prepare('SELECT COUNT(*) c FROM matches WHERE season BETWEEN ? AND ? AND play_cricket_match_id IS NOT NULL')
+    .get(firstSeason, lastSeason).c;
+
+  // report.no_pc_record is a snapshot from whenever scripts/reconcilePlayCricket.js
+  // last actually ran against the live API - it goes stale the moment a
+  // mismatch gets manually resolved (linked, or replaced by a fuller import),
+  // same problem "Linked"/"Unlinked" above had. Recompute live: every
+  // still-unlinked match in range, minus any (date, team) that's a known
+  // mismatch (open or resolved) - those found a real Play-Cricket candidate,
+  // they just don't have result_applied_to a match, so they don't belong in
+  // "no record found at all".
+  const mismatchKeys = new Set(
+    [...openMismatches, ...resolvedMismatches].map((m) => m.date + '|' + m.team)
+  );
+  const unlinkedRows = db
+    .prepare(
+      `SELECT season, match_date AS date, team_name AS team, opposition_name AS opposition, result
+       FROM matches WHERE season BETWEEN ? AND ? AND play_cricket_match_id IS NULL
+       ORDER BY match_date`
+    )
+    .all(firstSeason, lastSeason);
+  const noPcRecord = unlinkedRows.filter((r) => !mismatchKeys.has(r.date + '|' + r.team));
+
+  const annotated = {
+    ...report,
+    mismatches: openMismatches,
+    resolved: resolvedMismatches,
+    no_pc_record: noPcRecord,
+    summary: {
+      ...report.summary,
+      mismatches: openMismatches.length,
+      resolved: resolvedMismatches.length,
+      no_pc_record: noPcRecord.length,
+      total_games: totalGames,
+      linked_games: linkedGames,
+      unlinked_games: totalGames - linkedGames,
+    },
+  };
+  writeJson('reconciliation.json', annotated);
+  return annotated.summary;
+}
+
 function buildStatic() {
   const db = openDb();
 
@@ -332,13 +437,17 @@ function buildStatic() {
   const duplicateCount = buildDuplicateCandidates(db);
   const mergeCount = buildPlayerMerges();
   const dismissedCount = buildDismissedDuplicates();
+  const reconciliation = buildReconciliation(db);
 
   db.close();
 
   console.log(
     `Wrote ${OUT_DIR}: ${matchCount} matches, ${scorecardCount} scorecards, ` +
     `${battingCount} batting rows, ${bowlingCount} bowling rows, ${fieldingCount} fielding rows, ${playerCount} players, ` +
-    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges, ${dismissedCount} dismissed pairs.`
+    `${duplicateCount} duplicate candidates, ${mergeCount} confirmed merges, ${dismissedCount} dismissed pairs, ` +
+    (reconciliation
+      ? `Play-Cricket reconciliation: ${reconciliation.total_games} historic-era games, ${reconciliation.linked_games} linked, ${reconciliation.unlinked_games} unlinked (${reconciliation.mismatches} open mismatches, ${reconciliation.import_errors} import errors).`
+      : 'no Play-Cricket reconciliation report yet.')
   );
 }
 

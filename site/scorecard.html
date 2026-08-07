@@ -157,6 +157,7 @@
   .score-overs{ font-size: 11px; color: rgba(246,241,228,0.6); font-weight: 500; margin-left: 6px; }
   .match-result-row{ display:flex; align-items:center; justify-content: space-between; gap: 10px; margin-top: 14px; position:relative; }
   .match-result{ display:flex; align-items:center; gap:8px; font-size: 13px; font-weight: 600; }
+  .result-note{ font-weight: 400; color: rgba(246,241,228,0.72); }
   /* Play-Cricket attribution logo (white/transparent variant, site/img/) -
      same row as the result, right-aligned - only for matches synced from the
      Play-Cricket API (not historic/scraped ones). The onerror handler on the
@@ -347,7 +348,7 @@ const bowlingCols = [
   {key:"runs", label:"R"}, {key:"wkts", label:"W"}, {key:"avg", label:"Avg"}, {key:"econ", label:"Econ"},
 ];
 
-function renderHeader(match, usInnings, oppInnings){
+function renderHeader(match, usInnings, oppInnings, batting, bowling){
   const ourName = `Barwell CC ${match.team_name}`;
   document.title = `Fixtures - ${ourName} v ${match.opposition_name}`;
   document.getElementById('matchTeams').innerHTML =
@@ -381,8 +382,35 @@ function renderHeader(match, usInnings, oppInnings){
 
   if (match.result) {
     const summary = match.resultSummary || resultLabel[match.result] || match.result;
-    document.getElementById('matchResult').innerHTML =
-      `<span class="result-pill ${match.result}">${match.result}</span> ${summary}`;
+    let html = `<span class="result-pill ${match.result}">${match.result}</span> ${summary}`;
+    // No real scorecard (a walkover/concession/abandonment with no batting or
+    // bowling figures - note some of these still carry placeholder 0/0
+    // innings rows, so checking innings presence alone isn't enough) - the
+    // plain pill alone ("Won"/"Conceded") reads like a normal result with a
+    // table just below it that happens to be empty. result_description (from
+    // Play-Cricket, once reconciled - see scripts/reconcilePlayCricket.js)
+    // usually has the real context ("Won - Opposition Conceded") - show it
+    // as a note instead of a bare pill.
+    // A "did not bat" row is a squad-list placeholder, not a real innings
+    // figure (see a conceded Midweek XI fixture where every one of 11
+    // batting rows was "A.N. Other, did not bat") - doesn't count as a real
+    // scorecard on its own.
+    const realBatting = (batting || []).some((b) => b.how_out !== 'did not bat');
+    const noRealScorecard = !realBatting && (!bowling || bowling.length === 0);
+    if (noRealScorecard && match.result_description) {
+      // Strip the leading "Barwell Cricket Club" / team-name / plain verb
+      // restatement so this doesn't duplicate the pill+summary just shown
+      // ("Won — Won - Opposition Conceded") - keep only the distinctive
+      // part ("Opposition Conceded").
+      const note = match.result_description
+        .replace(/^Barwell (Cricket Club|CC)\s*-?\s*/i, '')
+        .replace(new RegExp('^(' + Object.values(resultLabel).join('|') + ')\\s*-?\\s*', 'i'), '')
+        .trim();
+      if (note && note.toLowerCase() !== 'unknown') {
+        html += `<span class="result-note"> — ${note}</span>`;
+      }
+    }
+    document.getElementById('matchResult').innerHTML = html;
   } else {
     document.getElementById('matchResult').innerHTML = '';
   }
@@ -519,7 +547,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   const { match, usInnings, oppInnings, batting, bowling } = await res.json();
 
   document.getElementById('scorecardContent').style.display = 'block';
-  renderHeader(match, usInnings, oppInnings);
+  renderHeader(match, usInnings, oppInnings, batting, bowling);
 
   if (!usInnings || !oppInnings) {
     document.getElementById('tablesSection').style.display = 'none';

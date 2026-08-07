@@ -42,6 +42,11 @@ seasons (2009–2025).
   **`site/duplicates.html`** (unlinked, not in the site nav) / **`data/player-merges.json`**
   — flags and (once confirmed) applies duplicate-player merges. See
   "Duplicate player names" below.
+- **`scripts/reconcilePlayCricket.js`** (`npm run reconcile-playcricket`) /
+  **`site/reconcile.html`** (unlinked, not in the site nav) — audits historic
+  matches against Play-Cricket's own record, links matching scorecards,
+  imports fixtures Play-Cricket has that we don't. See "Play-Cricket
+  reconciliation" below.
 - **`mockups/*.html`** — the approved visual-design reference (see
   `DESIGN.md`). `site/` is the real, wired-up implementation, kept as
   separate files from the mockups.
@@ -116,6 +121,47 @@ Player identity for historic data reuses the same `player_aliases`
 mechanism as the current season (see below) — a name confirmed once
 applies automatically to historic lookups too (`source='xlsx_export'`).
 Anyone not already covered becomes a new historic-only player.
+
+### Play-Cricket reconciliation (historic scrape ↔ Play-Cricket)
+
+`scripts/reconcilePlayCricket.js` (`npm run reconcile-playcricket`) audits
+every historic (2009–2025) match against Play-Cricket's own record of the
+same fixture — Play-Cricket does have data back to 2009 for this club, even
+though the historic scrape (above) doesn't use it as a source. For each
+Play-Cricket fixture (senior teams only, matched by season + date + team
+name):
+
+- **Result agrees** → linked: `matches.play_cricket_match_id` gets set, so
+  the match's Scorecard page shows a real "View on Play-Cricket" link
+  (`site/scorecard.html` already renders this whenever the column is set —
+  no separate UI work needed).
+- **Result disagrees** → flagged as a mismatch, left unlinked, for a human
+  to review on `site/reconcile.html` (unlinked, not in the site nav, same
+  pattern as `site/duplicates.html`).
+- **Play-Cricket has the fixture, we don't** → imported in full (batting,
+  bowling, fielding) via the same `match_detail`/`parseMatchDetail`/
+  `insertMatch` pipeline `scripts/sync-playcricket.js` uses for the current
+  season, then linked automatically.
+
+```
+npm run reconcile-playcricket        # audits + mutates the local DB (slow - one API call per season, plus one per imported match)
+npm run dump-historic                # refreshes scraped-matches.json with any new play_cricket_match_id links
+npm run dump-playcricket-backfill    # writes historic-data/playcricket-backfill.json for anything imported
+git add historic-data/ && git commit
+```
+
+Like the historic scrape itself, this is a manual/occasional step, not part
+of the automated build — re-running it costs real API traffic and none of
+the underlying historic data changes on its own. `npm run load-historic` and
+`npm run load-playcricket-backfill` (both fast, no network) are what every
+real build actually runs, loading the two checked-in dumps into a fresh DB.
+
+Matching is fixture-level (date + team + result), not a full scorecard diff.
+Play-Cricket's own coverage is much thinner in early seasons (mostly 1st XI
+only before ~2012, broadening to near-full senior-team coverage from around
+2021) — a historic match with no matching Play-Cricket record isn't
+necessarily wrong, and is shown separately on `site/reconcile.html` rather
+than flagged as a mismatch.
 
 ### Player name matching (xlsx export ↔ Play-Cricket)
 

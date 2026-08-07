@@ -55,6 +55,21 @@ jobs:
       - name: Load historic seasons
         run: npm run load-historic
 
+      # Historic-era matches that scripts/reconcilePlayCricket.js found on
+      # Play-Cricket but not in the club's own site scrape - checked in as
+      # historic-data/playcricket-backfill.json, same "scrape/reconcile
+      # occasionally, load on every build" pattern as historic seasons above.
+      - name: Load Play-Cricket backfilled matches
+        run: npm run load-playcricket-backfill
+
+      # npm run sync already derives fielding for the current season, but it
+      # runs before the historic-era matches above are loaded - re-run so the
+      # backfilled matches (source='playcricket', just an earlier season) get
+      # their catches/stumpings derived too. Idempotent (see
+      # test/deriveFielding.test.js), safe to call twice in one build.
+      - name: Derive fielding for backfilled matches
+        run: npm run derive-fielding
+
       - name: Build static JSON for the site
         run: npm run build-static
 

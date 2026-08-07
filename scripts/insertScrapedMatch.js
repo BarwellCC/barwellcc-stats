@@ -43,7 +43,8 @@ function insertScrapedMatch(db, parsed) {
         `UPDATE matches SET season=@season, match_time=@match_time, venue=@venue,
          home_or_away=@home_or_away, competition_name=@competition_name,
          competition_type=@competition_type, result=@result, result_description=@result_description,
-         toss=@toss, our_total=@our_total, opposition_total=@opposition_total, last_updated=@last_updated
+         toss=@toss, our_total=@our_total, opposition_total=@opposition_total, last_updated=@last_updated,
+         play_cricket_match_id=COALESCE(@play_cricket_match_id, play_cricket_match_id)
          WHERE id=@id`
       ).run({ ...match, id: matchId });
       db.prepare('DELETE FROM innings WHERE match_id = ?').run(matchId);

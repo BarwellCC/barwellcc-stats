@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Barwell CC — Play-Cricket reconciliation</title>
+<link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96">
+<script>
+(function(){
+  var stored = localStorage.getItem('barwellcc-theme');
+  if(stored === 'dark' || stored === 'light') document.documentElement.setAttribute('data-theme', stored);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg-page: #F4F3F1; --card: #FDFDFC; --row-even: #F1F0EE; --head-bg: #E8E6E3;
+    --ink: #201E18; --ink-soft: #5B5548; --accent: #0A6CB3;
+    --line: #DCDAD5; --line-strong: #BFBBB0; --radius: 10px;
+    --ok: #2E7D46; --ok-bg: #E4F3E8; --warn: #B8923A; --warn-bg: #F7EFDC; --danger: #B3331C; --danger-bg: #F8E4DF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+      --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --line: #2B3944; --line-strong: #3D4F5C;
+      --ok: #6FCB8F; --ok-bg: #17301F; --warn: #D4AF5A; --warn-bg: #332812; --danger: #E38268; --danger-bg: #341A14;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-page: #12191F; --card: #1B242C; --row-even: #202B34; --head-bg: #26323C;
+    --ink: #E9E4D6; --ink-soft: #A3A093; --accent: #5B9BD5; --line: #2B3944; --line-strong: #3D4F5C;
+    --ok: #6FCB8F; --ok-bg: #17301F; --warn: #D4AF5A; --warn-bg: #332812; --danger: #E38268; --danger-bg: #341A14;
+    color-scheme: dark;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; background: var(--bg-page); color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.5;
+  }
+  .page{ max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1{ font-family:'Fraunces', serif; font-weight:700; font-size: 26px; margin: 0 0 4px; }
+  .subtitle{ color: var(--ink-soft); margin: 0 0 20px; max-width: 70ch; }
+  .subtitle code{ background: var(--head-bg); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .generated{ color: var(--ink-soft); font-size: 12.5px; margin: 0 0 24px; }
+
+  .stats{ display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stat{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 16px; min-width: 110px; }
+  .stat .n{ font-family:'Fraunces', serif; font-weight:700; font-size: 22px; }
+  .stat .l{ color: var(--ink-soft); font-size: 12px; }
+  .stat.linked .n{ color: var(--ok); }
+  .stat.unlinked .n{ color: var(--warn); }
+  .stat.mismatch .n{ color: var(--danger); }
+  .stat.imported .n{ color: var(--ok); }
+  .stat.norecord .n{ color: var(--warn); }
+
+  .split-label{ display:flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
+  .split-label strong{ color: var(--ok); font-weight: 700; }
+  .split-bar{ height: 8px; border-radius: 999px; background: var(--warn-bg); overflow: hidden; margin-bottom: 22px; }
+  .split-bar .fill{ height: 100%; background: var(--ok); }
+
+  .mini-stats{ display:flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .mini-stat{
+    display:flex; align-items:baseline; gap: 6px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 14px; cursor: pointer; transition: border-color .12s;
+  }
+  .mini-stat:hover{ border-color: var(--line-strong); }
+  .mini-stat .n{ font-family:'Fraunces', serif; font-weight:700; font-size: 15px; color: var(--danger); }
+  .mini-stat .l{ color: var(--ink-soft); font-size: 12.5px; }
+  .mini-stat.imported .n{ color: var(--ok); }
+  .mini-stat.norecord .n{ color: var(--warn); }
+
+  .group-label{ font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 0 0 8px; }
+  .group-label:not(:first-child){ margin-top: 6px; }
+
+  details.section{ margin: 0 0 14px; }
+  details.section > summary{
+    font-family:'Fraunces', serif; font-weight:600; font-size: 17px; margin: 0;
+    cursor: pointer; list-style: none; display:flex; align-items:center; gap:10px; padding: 6px 0;
+    scroll-margin-top: 64px;
+  }
+  details.section > summary::-webkit-details-marker{ display:none; }
+  details.section > summary::before{
+    content: '▸'; display:inline-block; color: var(--ink-soft); font-size: 12px; transition: transform .12s; width: 10px;
+  }
+  details.section[open] > summary::before{ transform: rotate(90deg); }
+  .count{ font-size: 12px; font-weight: 600; color: var(--ink-soft); background: var(--head-bg); border-radius: 999px; padding: 2px 10px; }
+  .note{ color: var(--ink-soft); font-size: 12.5px; margin: 4px 0 10px; max-width: 76ch; }
+
+  .card{ background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow:hidden; }
+  .row{ border-bottom: 1px solid var(--line); padding: 12px 18px; display:flex; align-items:center; gap: 14px; flex-wrap: wrap; font-size: 13.5px; }
+  .row:last-child{ border-bottom:none; }
+  .row .date{ font-weight: 600; min-width: 92px; }
+  .row .team{ color: var(--ink-soft); min-width: 70px; }
+  .row .opp{ flex: 1 1 200px; }
+  .side{ display:flex; flex-direction:column; gap: 2px; min-width: 220px; }
+  .side .src{ font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); font-weight: 600; }
+  .side .val{ font-weight: 600; }
+  .result-pill{ display:inline-flex; align-items:center; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; margin-right: 6px; }
+  .result-W{ background: var(--ok-bg); color: var(--ok); }
+  .result-L{ background: var(--danger-bg); color: var(--danger); }
+  .result-D, .result-T, .result-A{ background: var(--head-bg); color: var(--ink-soft); }
+  a.pc-link{ color: var(--accent); font-weight: 600; text-decoration: none; font-size: 12.5px; white-space: nowrap; }
+  a.pc-link:hover{ text-decoration: underline; }
+  .empty{ padding: 24px 18px; color: var(--ink-soft); text-align:center; }
+  .loading{ color: var(--ink-soft); padding: 12px 0; }
+
+  .reason-toggle{
+    flex-basis: 100%; font-size: 12px; color: var(--accent); background:none; border:none;
+    cursor:pointer; font-family: inherit; text-align:left; padding: 2px 0;
+  }
+  .reason-text{ flex-basis: 100%; color: var(--ink-soft); font-size: 12.5px; display: none; }
+  .reason-text.shown{ display: block; }
+
+  footer{ margin-top: 40px; font-size: 12px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Play-Cricket reconciliation</h1>
+  <p class="subtitle">
+    Unlinked staff page — not part of the site nav. Checks every historic
+    (2009–2025) match on this site against Play-Cricket's own record of the
+    same fixture. Produced by <code>npm run reconcile-playcricket</code> — to
+    refresh, re-run that, then <code>npm run dump-historic &amp;&amp; npm run
+    dump-playcricket-backfill &amp;&amp; npm run build-static</code>.
+  </p>
+  <p id="generated" class="generated"></p>
+
+  <div id="stats" class="stats"></div>
+  <p class="split-label" id="splitLabel"></p>
+  <div class="split-bar"><div class="fill" id="splitFill"></div></div>
+  <div id="miniStats" class="mini-stats"></div>
+
+  <p class="group-label">Issues</p>
+  <details class="section" id="mismatchesSection">
+    <summary>Mismatches <span id="mismatchCount" class="count"></span></summary>
+    <p class="note">We have a match on this date for this team, but Play-Cricket disagrees on the result. Worth a look by eye — could be a scraping error, a Play-Cricket correction, or two different fixtures that happen to share a date.</p>
+    <div id="mismatches" class="card"><div class="loading">Loading…</div></div>
+  </details>
+
+  <details class="section" id="importErrorsSection">
+    <summary>Import errors <span id="errorCount" class="count"></span></summary>
+    <div id="importErrors" class="card"><div class="loading">Loading…</div></div>
+  </details>
+
+  <p class="group-label">Detail</p>
+  <details class="section" id="resolvedSection">
+    <summary>Resolved <span id="resolvedCount" class="count"></span></summary>
+    <p class="note">Mismatches already checked by hand — decision and reasoning recorded in <code>data/reconciliation-resolutions.json</code>, so re-running the reconciliation doesn't keep asking about them.</p>
+    <div id="resolved" class="card"><div class="loading">Loading…</div></div>
+  </details>
+
+  <details class="section" id="importedSection">
+    <summary>Imported from Play-Cricket <span id="importedCount" class="count"></span></summary>
+    <p class="note">Play-Cricket had a fixture we didn't — full scorecard pulled in and linked automatically.</p>
+    <div id="imported" class="card"><div class="loading">Loading…</div></div>
+  </details>
+
+  <details class="section" id="noRecordSection">
+    <summary>No Play-Cricket record found <span id="noRecordCount" class="count"></span></summary>
+    <p class="note">Not necessarily wrong — Play-Cricket's own coverage is much thinner in early seasons (mostly 1st XI only before ~2012) and only broadens to near-full senior-team coverage from around 2021. Counts toward "Unlinked" above but isn't flagged as an error.</p>
+    <div id="noRecord" class="card"><div class="loading">Loading…</div></div>
+  </details>
+
+  <footer>Linked matches (result agrees) aren't listed individually here — they just get a "View on Play-Cricket" link on their scorecard page.</footer>
+</div>
+
+<script>
+function resultPill(code) {
+  if (!code) return '<span class="result-pill">?</span>';
+  var label = { W: 'Won', L: 'Lost', D: 'Drawn', T: 'Tied', A: 'Abandoned', C: 'Cancelled', CON: 'Conceded' }[code] || code;
+  return '<span class="result-pill result-' + code + '">' + label + '</span>';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+function mismatchRow(m) {
+  return '<div class="row">' +
+    '<span class="date">' + m.date + '</span>' +
+    '<span class="team">' + esc(m.team) + '</span>' +
+    '<div class="side"><span class="src">Our site</span><span class="val">' + resultPill(m.our_site_result) + esc(m.our_site_opposition) + '</span></div>' +
+    '<div class="side"><span class="src">Play-Cricket</span><span class="val">' + resultPill(m.play_cricket_result) + esc(m.play_cricket_opposition) + '</span></div>' +
+    '<a class="pc-link" href="' + m.url + '" target="_blank" rel="noopener">View on Play-Cricket &rarr;</a>' +
+    '</div>';
+}
+
+var decisionLabel = { keep_ours: 'Kept our result', use_playcricket: 'Adopted Play-Cricket', link_anyway: 'Linked anyway', equivalent: 'Different label, same result', false_positive: 'False positive - already correct' };
+var reasonSeq = 0;
+
+function resolvedRow(m) {
+  var rid = 'reason-' + (reasonSeq++);
+  return '<div class="row">' +
+    '<span class="date">' + m.date + '</span>' +
+    '<span class="team">' + esc(m.team) + '</span>' +
+    '<div class="side"><span class="src">Our site</span><span class="val">' + resultPill(m.our_site_result) + esc(m.our_site_opposition) + '</span></div>' +
+    '<div class="side"><span class="src">Play-Cricket</span><span class="val">' + resultPill(m.play_cricket_result) + esc(m.play_cricket_opposition) + '</span></div>' +
+    '<span class="result-pill result-D">' + esc(decisionLabel[m.decision] || m.decision) + '</span>' +
+    '<a class="pc-link" href="' + m.url + '" target="_blank" rel="noopener">View on Play-Cricket &rarr;</a>' +
+    '<button type="button" class="reason-toggle" data-target="' + rid + '">Show reasoning</button>' +
+    '<div class="reason-text" id="' + rid + '">' + esc(m.note) + '</div>' +
+    '</div>';
+}
+
+function importedRow(m) {
+  return '<div class="row">' +
+    '<span class="date">' + m.date + '</span>' +
+    '<span class="team">' + esc(m.team) + '</span>' +
+    '<span class="opp">' + resultPill(m.result) + esc(m.opposition) + '</span>' +
+    '<a class="pc-link" href="' + m.url + '" target="_blank" rel="noopener">View on Play-Cricket &rarr;</a>' +
+    '</div>';
+}
+
+function errorRow(m) {
+  return '<div class="row">' +
+    '<span class="date">' + m.date + '</span>' +
+    '<span class="team">' + esc(m.team) + '</span>' +
+    '<span class="opp">' + esc(m.opposition || '') + '</span>' +
+    '<span style="color:var(--danger)">' + esc(m.error) + '</span>' +
+    '</div>';
+}
+
+function noRecordRow(m) {
+  return '<div class="row">' +
+    '<span class="date">' + m.date + '</span>' +
+    '<span class="team">' + esc(m.team) + '</span>' +
+    '<span class="opp">' + resultPill(m.result) + esc(m.opposition) + '</span>' +
+    '</div>';
+}
+
+function fill(id, items, renderer, emptyText) {
+  var el = document.getElementById(id);
+  el.innerHTML = items.length === 0
+    ? '<div class="empty">' + emptyText + '</div>'
+    : items.map(renderer).join('');
+  return items.length;
+}
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.reason-toggle');
+  if (!btn) return;
+  var target = document.getElementById(btn.getAttribute('data-target'));
+  var shown = target.classList.toggle('shown');
+  btn.textContent = shown ? 'Hide reasoning' : 'Show reasoning';
+});
+
+fetch('data/reconciliation.json').then(function(r){ return r.json(); }).then(function(report){
+  if (!report) {
+    document.getElementById('generated').textContent = '';
+    ['mismatches','resolved','imported','importErrors','noRecord'].forEach(function(id){
+      document.getElementById(id).innerHTML = '<div class="empty">No reconciliation report yet — run <code>npm run reconcile-playcricket</code> then <code>npm run build-static</code>.</div>';
+    });
+    return;
+  }
+
+  document.getElementById('generated').textContent =
+    'Last run ' + new Date(report.generated_at).toLocaleString() + ' · seasons ' + report.seasons[0] + '–' + report.seasons[1];
+
+  var s = report.summary;
+  document.getElementById('stats').innerHTML =
+    '<div class="stat"><div class="n">' + s.total_games + '</div><div class="l">Total games</div></div>' +
+    '<div class="stat linked"><div class="n">' + s.linked_games + '</div><div class="l">Linked to PC</div></div>' +
+    '<div class="stat unlinked"><div class="n">' + s.unlinked_games + '</div><div class="l">Unlinked to PC</div></div>';
+  var linkedPct = s.total_games ? Math.round((s.linked_games / s.total_games) * 1000) / 10 : 0;
+  document.getElementById('splitFill').style.width = linkedPct + '%';
+  document.getElementById('splitFill').title = s.linked_games + ' of ' + s.total_games + ' (' + linkedPct + '%) linked to a Play-Cricket scorecard';
+  document.getElementById('splitLabel').innerHTML =
+    '<span><strong>' + linkedPct + '%</strong> linked to Play-Cricket</span>' +
+    '<span>' + (100 - linkedPct).toFixed(1) + '% unlinked</span>';
+
+  document.getElementById('miniStats').innerHTML =
+    '<div class="mini-stat" data-target="mismatchesSection"><span class="n">' + s.mismatches + '</span><span class="l">Mismatches</span></div>' +
+    '<div class="mini-stat" data-target="importErrorsSection"><span class="n">' + s.import_errors + '</span><span class="l">Import errors</span></div>' +
+    '<div class="mini-stat imported" data-target="importedSection"><span class="n">' + s.imported + '</span><span class="l">Imported from PC</span></div>' +
+    '<div class="mini-stat norecord" data-target="noRecordSection"><span class="n">' + s.no_pc_record + '</span><span class="l">No PC record found</span></div>';
+  document.querySelectorAll('.mini-stat').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var section = document.getElementById(el.getAttribute('data-target'));
+      if (section) { section.open = true; section.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+
+  // Open by default: Mismatches (most actionable) and Resolved/Imported
+  // (small, worth seeing). Collapsed by default: No Play-Cricket record,
+  // since it can run into the hundreds and is informational, not actionable.
+  document.getElementById('mismatchesSection').open = true;
+  document.getElementById('resolvedSection').open = report.mismatches.length === 0;
+  document.getElementById('importedSection').open = true;
+  document.getElementById('importErrorsSection').open = report.import_errors.length > 0;
+  document.getElementById('noRecordSection').open = false;
+
+  document.getElementById('mismatchCount').textContent = fill('mismatches', report.mismatches, mismatchRow, 'No open mismatches — everything\'s been resolved.');
+  document.getElementById('resolvedCount').textContent = fill('resolved', report.resolved || [], resolvedRow, 'Nothing resolved yet.');
+  document.getElementById('importedCount').textContent = fill('imported', report.imported, importedRow, 'Nothing imported this run.');
+  document.getElementById('errorCount').textContent = fill('importErrors', report.import_errors, errorRow, 'No import errors.');
+  document.getElementById('noRecordCount').textContent = fill('noRecord', report.no_pc_record, noRecordRow, 'Every historic match matched a Play-Cricket record.');
+}).catch(function(err){
+  document.getElementById('mismatches').innerHTML = '<div class="empty">Could not load data/reconciliation.json — run <code>npm run build-static</code> first.</div>';
+  console.error(err);
+});
+</script>
+</body>
+</html>

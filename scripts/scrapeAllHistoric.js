@@ -81,6 +81,23 @@ async function scrapeTeamSeason(db, teamName, teamId, season, seasonId, stats) {
     }
     record.match.opposition_name = clean(record.match.opposition_name);
 
+    // A real innings never has more than ~13 batters (11 plus the rare sub) -
+    // seen this page (barwellcc.co.uk/scorecard/fixtureID_678717, 2019-05-19
+    // Sunday XI v Dunton Bassett) briefly render 265 rows, apparently a
+    // transient RadGrid rendering glitch on the club's own site rather than
+    // a parser bug (re-fetching later gave a normal 11 rows). Warn loudly
+    // rather than silently baking a corrupt scorecard into the checked-in
+    // dump - worth a manual re-check/re-scrape of this fixture specifically.
+    for (const inn of record.innings) {
+      if (inn.batting.length > 15) {
+        console.warn(
+          `  ! suspiciously large batting table (${inn.batting.length} rows) for fixture ` +
+          `${row.fixtureId} (${teamName} ${season}, ${record.match.match_date} v ${record.match.opposition_name}) - ` +
+          `likely a page-rendering glitch, not real data. Re-check this fixture by hand.`
+        );
+      }
+    }
+
     insertScrapedMatch(db, record);
     stats.matchesImported += 1;
     if (record.innings.length) stats.matchesWithInnings += 1;
