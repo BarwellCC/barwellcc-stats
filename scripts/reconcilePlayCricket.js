@@ -43,11 +43,6 @@ const API_TOKEN = process.env.PLAY_CRICKET_API_TOKEN;
 const SITE_ID = process.env.PLAY_CRICKET_SITE_ID;
 const CLUB_ID = process.env.PLAY_CRICKET_CLUB_ID;
 
-if (!API_TOKEN || !SITE_ID) {
-  console.error('Missing PLAY_CRICKET_API_TOKEN or PLAY_CRICKET_SITE_ID in .env');
-  process.exit(1);
-}
-
 const BASE = 'https://www.play-cricket.com/api/v2';
 
 // The historic scrape covers 2009-2025 (see README.md) - current/future
@@ -105,6 +100,17 @@ function loadExistingBackfill() {
 }
 
 async function reconcile() {
+  // Checked here, not at module load - test/reconcilePlayCricket.test.js
+  // requires this module just for the pure ourResultFromSummary() function,
+  // with no network/API credentials involved. A module-load-time check
+  // would fail that require() (and so the whole test file) in CI, where
+  // PLAY_CRICKET_API_TOKEN is only injected as a step-scoped env var for the
+  // "Sync from Play-Cricket" step, not for the later "Run tests" step.
+  if (!API_TOKEN || !SITE_ID) {
+    console.error('Missing PLAY_CRICKET_API_TOKEN or PLAY_CRICKET_SITE_ID in .env');
+    process.exit(1);
+  }
+
   const db = openDb();
 
   const linked = [];
