@@ -13,7 +13,7 @@ const path = require('path');
 const { openDb } = require('./db');
 const { describeResult } = require('../site/js/cricket-calc');
 const { findDuplicatePlayers, findSuspiciousNames, promoteSuspiciousToPairs, getBarwellPlayers } = require('./findDuplicatePlayers');
-const { excludedPlayersClause, loadExcludedPlayerNames, KNOWN_FAKE_NAMES } = require('./excludedPlayers');
+const { excludedPlayersClause, loadExcludedPlayerNames } = require('./excludedPlayers');
 
 const MERGES_PATH = path.join(__dirname, '..', 'data', 'player-merges.json');
 const DISMISSALS_PATH = path.join(__dirname, '..', 'data', 'duplicate-dismissals.json');
@@ -133,30 +133,25 @@ function buildScorecards(db) {
       continue;
     }
 
-    // Same exclusion as buildBattingRows/buildBowlingRows/buildFieldingRows/
-    // buildPlayers below applies here too - a scorecard is a per-match view
-    // of the same players.name data, so a name that isn't a real person (see
-    // scripts/excludedPlayers.js) can't be shown as if it were one. But
-    // scripts/excludedPlayers.js's two categories get different treatment on
-    // a scorecard specifically:
-    //   - KNOWN_FAKE_NAMES - "Unsure", "A.N. Other", "T.B.C", etc. - are all
-    //     the same underlying situation from the scorer's point of view: a
-    //     real slot in the line-up whose occupant's identity wasn't
-    //     recorded. The line-up genuinely had that slot, so the row stays
-    //     (with whatever real figures - runs, how out, overs, wickets -
-    //     Play-Cricket has for it), just relabelled to the one consistent
-    //     "Unsure" and never linked to a player profile, since there's no
-    //     real player behind any of these names to link to (see
-    //     site/scorecard.html's renderBatting()/renderBowling()/nameCell()).
-    //   - Individually-confirmed-bad names from data/excluded-players.json
-    //     are a different problem (a specific record a human ruled out via
-    //     site/duplicates.html, not "unidentified") - those are dropped
-    //     entirely, same as everywhere else on the site.
-    const sentinelNames = new Set(KNOWN_FAKE_NAMES);
-    const individuallyExcluded = new Set(
-      loadExcludedPlayerNames().filter((n) => !sentinelNames.has(n))
-    );
-    const sanitizeRow = (r) => (sentinelNames.has(r.name) ? { ...r, name: 'Unsure' } : r);
+    // Every name in scripts/excludedPlayers.js is kept off buildBattingRows/
+    // buildBowlingRows/buildFieldingRows/buildPlayers below - a name that
+    // isn't a real, distinct person shouldn't get its own career stats or
+    // show up as a duplicate-merge candidate. A scorecard is different: it's
+    // a record of the actual line-up that played, so *dropping* the row
+    // instead would silently leave the team a player short (a "68/10"
+    // innings rendered with only 9 visible batters isn't a faithful record
+    // of the game) - whether the name is one of the generic sentinel
+    // placeholders ("Unsure", "A.N. Other", "T.B.C", etc.) or a specific
+    // record a human ruled out via site/duplicates.html (see
+    // data/excluded-players.json), the line-up genuinely had that slot, we
+    // just don't have (or trust) a real identity for it. So every excluded
+    // name is kept and relabelled to the one consistent "Unsure", with
+    // whatever real figures - runs, how out, overs, wickets - Play-Cricket
+    // has for it, and never linked to a player profile, since there's no
+    // real player behind any of these names to link to (see
+    // site/scorecard.html's renderBatting()/renderBowling()/nameCell()).
+    const excludedNames = new Set(loadExcludedPlayerNames());
+    const sanitizeRow = (r) => (excludedNames.has(r.name) ? { ...r, name: 'Unsure' } : r);
 
     const batting = db
       .prepare(
@@ -168,7 +163,6 @@ function buildScorecards(db) {
          ORDER BY bp.id`
       )
       .all(usInnings.id)
-      .filter((r) => !individuallyExcluded.has(r.name))
       .map(sanitizeRow);
 
     // bowling_performances on an innings belong to the team that did NOT bat
@@ -182,7 +176,6 @@ function buildScorecards(db) {
          ORDER BY bwp.id`
       )
       .all(oppInnings.id)
-      .filter((r) => !individuallyExcluded.has(r.name))
       .map(sanitizeRow);
 
     writeJson(`scorecards/${publicId}.json`, { match, usInnings, oppInnings, batting, bowling });
