@@ -19,7 +19,7 @@ const path = require('path');
 
 const EXCLUDED_PATH = path.join(__dirname, '..', 'data', 'excluded-players.json');
 
-const KNOWN_FAKE_NAMES = ['Unsure', 'Selected member not found', 'A.N. Other', 'A N Other', 'Test Test'];
+const KNOWN_FAKE_NAMES = ['Unsure', 'Selected member not found', 'A.N. Other', 'A N Other', 'Test Test', 'T.B.C'];
 
 // Cached per process, same reasoning as scripts/db.js's player-merges
 // cache - data/excluded-players.json only changes when someone confirms a

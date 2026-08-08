@@ -9,14 +9,20 @@
 // is_us = 1 innings would attribute the opposition's fielding to our players.
 //
 // fielder_name is matched to players.name exactly; Play-Cricket occasionally
-// records it as "Unsure" when the scorer didn't know who took the catch -
-// that string is skipped explicitly, since it otherwise exact-matches a real
-// (bogus) "Unsure" row that exists in players because someone was once
-// recorded as a batsman/bowler by that same placeholder name. Any other
-// fielder_name with no matching player (e.g. a substitute we've never seen
-// bat/bowl) is skipped too, rather than creating a new player row for it.
+// records it as "Unsure" when the scorer didn't know who took the catch, or
+// as one of the other known-fake placeholder strings (see
+// scripts/excludedPlayers.js - "A.N. Other", "T.B.C", etc.) - those are all
+// skipped explicitly, since they'd otherwise exact-match a real (bogus)
+// player row that exists in `players` because someone was once recorded as
+// a batsman/bowler by that same placeholder name, wrongly crediting a catch
+// to a name that isn't a real person. Any other fielder_name with no
+// matching player (e.g. a substitute we've never seen bat/bowl) is skipped
+// too, rather than creating a new player row for it.
+
+const { loadExcludedPlayerNames } = require('./excludedPlayers');
 
 function deriveFielding(db) {
+  const excludedNames = new Set(loadExcludedPlayerNames());
   const dismissals = db
     .prepare(
       `SELECT bp.how_out, bp.fielder_name, i.match_id
@@ -39,7 +45,7 @@ function deriveFielding(db) {
   const totals = new Map();
   let unmatched = 0;
   for (const d of dismissals) {
-    const playerId = d.fielder_name === 'Unsure' ? null : playerIdByName.get(d.fielder_name);
+    const playerId = excludedNames.has(d.fielder_name) ? null : playerIdByName.get(d.fielder_name);
     if (!playerId) {
       unmatched += 1;
       continue;

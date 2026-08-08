@@ -214,6 +214,11 @@
   .not-out{ color: var(--accent); font-weight: 600; }
   .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
   tr.dnb td{ color: var(--ink-soft); font-style: italic; }
+  /* "Unsure" (see site/scorecard.html's nameCell()) reads the same whether
+     or not it has a real recorded score - same muted/italic treatment as a
+     "did not bat" row, not the bold player-name style, since there's no
+     real identity behind it either way. */
+  tr.unsure td{ color: var(--ink-soft); font-style: italic; font-weight: 400; }
   tr.extras-row td{ font-weight: 600; border-top: 2px solid var(--line-strong); background: var(--head-bg); }
   tr.total-row td{ font-weight: 700; font-size: 13.5px; background: var(--head-bg); }
   .extras-detail{ color: var(--ink-soft); font-weight: 500; font-size: 11.5px; }
@@ -416,6 +421,16 @@ function renderHeader(match, usInnings, oppInnings, batting, bowling){
   }
 }
 
+// "Unsure" is Play-Cricket's own placeholder for a real player whose
+// identity the scorer didn't record (see scripts/buildStatic.js's
+// buildScorecards()) - shown with its real recorded figures like anyone
+// else, just as plain text rather than a link, since there's no real player
+// profile behind the name to link to.
+function nameCell(name){
+  if (name === 'Unsure') return `<td class="name">${name}</td>`;
+  return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(name)}">${name}</a>${DuplicateFlags.badge(name, flaggedNames)}</td>`;
+}
+
 function renderBatting(batting, extras, teamTotal){
   document.getElementById("battingHead").innerHTML = battingCols.map(c => `<th class="${c.key === 'howOut' ? 'how-out' : ''}">${c.label}</th>`).join("");
   const rows = batting.map(r => {
@@ -424,8 +439,8 @@ function renderBatting(batting, extras, teamTotal){
     const notOut = howOut === "not out" || howOut === "retired not out";
     const sr = (r.balls != null && r.balls > 0) ? ((r.runs / r.balls) * 100).toFixed(1) : "";
     const runsCell = notOut ? `${r.runs}<span class="not-out">*</span>` : r.runs;
-    return `<tr class="${dnb ? 'dnb' : ''}">
-      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
+    return `<tr class="${r.name === 'Unsure' ? 'unsure' : (dnb ? 'dnb' : '')}">
+      ${nameCell(r.name)}
       <td class="how-out">${howOut}</td>
       <td>${dnb ? '' : runsCell}</td>
       <td>${r.balls ?? ''}</td>
@@ -458,8 +473,8 @@ function renderBowling(bowling, oppInnings){
     const actualOvers = oversToBalls(r.overs) / 6;
     const econ = (r.runs / actualOvers).toFixed(1);
     const avg = r.wkts > 0 ? (r.runs / r.wkts).toFixed(1) : "-";
-    return `<tr>
-      <td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
+    return `<tr class="${r.name === 'Unsure' ? 'unsure' : ''}">
+      ${nameCell(r.name)}
       <td>${r.overs}</td>
       <td>${r.maidens}</td>
       <td>${r.runs}</td>

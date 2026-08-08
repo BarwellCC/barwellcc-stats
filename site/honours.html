@@ -386,14 +386,30 @@ function handleBodyClick(e, key){
 }
 
 const TAB_TITLES = { batting: 'Barwell CC - Batting Honours', bowling: 'Barwell CC - Bowling Honours' };
-function activateTab(tab){
+// The tab is reflected in the URL hash (honours.html#batting /
+// honours.html#bowling) so each board can be linked to directly, not just
+// reached by clicking the tab after landing on the page. replaceState
+// rather than location.hash= so switching tabs doesn't spam the browser's
+// back/forward history with one entry per click.
+function activateTab(tab, updateHash){
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
   document.getElementById('battingSection').style.display = tab === 'batting' ? '' : 'none';
   document.getElementById('bowlingSection').style.display = tab === 'bowling' ? '' : 'none';
   document.title = TAB_TITLES[tab];
+  if (updateHash !== false && location.hash.slice(1) !== tab) {
+    history.replaceState(null, '', '#' + tab);
+  }
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => activateTab(t.dataset.tab)));
-activateTab('batting');
+
+function tabFromHash(){
+  return location.hash.slice(1) === 'bowling' ? 'bowling' : 'batting';
+}
+activateTab(tabFromHash(), false);
+// A link to the other tab's hash while already on this page (or manually
+// editing the URL) doesn't reload the page, so hashchange is the only way
+// to notice it and switch.
+window.addEventListener('hashchange', () => activateTab(tabFromHash(), false));
 
 Promise.all([
   fetch('data/batting.json').then((r) => r.json()),

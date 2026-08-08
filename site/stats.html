@@ -771,6 +771,18 @@ let teamMsel, seasonMsel, compMsel;
 let battingRows = [], bowlingRows = [];
 let initialPlayerParam = '';
 
+// Matches scripts/teams.js's SENIOR_TEAMS order - plain alphabetical sort
+// puts "Midweek 2nd XI" before "Midweek XI" (digit sorts before letter),
+// which reads wrong since Midweek XI is the senior of the two sides.
+const TEAM_ORDER = ['1st XI', '2nd XI', '3rd XI', 'Midweek XI', 'Midweek 2nd XI', 'Sunday XI'];
+function byTeamOrder(a, b){
+  const ia = TEAM_ORDER.indexOf(a), ib = TEAM_ORDER.indexOf(b);
+  if (ia === -1 && ib === -1) return a.localeCompare(b);
+  if (ia === -1) return 1;
+  if (ib === -1) return -1;
+  return ia - ib;
+}
+
 async function loadFilters(){
   const [matches, batRows, bowlRows, flagged] = await Promise.all([
     fetch('data/matches.json').then(r => r.json()),
@@ -782,7 +794,7 @@ async function loadFilters(){
   bowlingRows = bowlRows;
   flaggedNames = flagged;
 
-  teamOptions = [...new Set(matches.map(m => m.team))].sort();
+  teamOptions = [...new Set(matches.map(m => m.team))].sort(byTeamOrder);
   seasonOptions = [...new Set(matches.map(m => m.season))].sort((a, b) => b - a).map(String);
   const latestSeason = seasonOptions[0]; // sorted newest-first above
 

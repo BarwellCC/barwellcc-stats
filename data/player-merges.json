@@ -1,5 +1,11 @@
 [
   {
+    "canonical": { "name": "Stephen Hanson", "play_cricket_id": 5624610 },
+    "aliases": [
+      { "name": "Sid Hanson", "play_cricket_id": null }
+    ]
+  },
+  {
     "canonical": { "name": "Daniel King", "play_cricket_id": 5271579 },
     "aliases": [
       { "name": "Dan King", "play_cricket_id": null }
