@@ -22,6 +22,98 @@ const RECONCILIATION_RESOLUTIONS_PATH = path.join(__dirname, '..', 'data', 'reco
 
 const OUT_DIR = process.env.STATIC_OUT_DIR || path.join(__dirname, '..', 'site', 'data');
 
+// Friendlies show up everywhere like any other match (Type = "Friendly"),
+// except a couple of long-running named fixtures the club doesn't want
+// lost among every other friendly - these count as "Cup" for filtering/
+// grouping purposes (competition_type, row.comp) instead, with their own
+// name kept on display via a second "display_type" field that only the
+// Type column/scorecard subtitle read, so the fixture reads identically
+// everywhere on the site no matter which recorded variant this particular
+// row happens to carry.
+// season isn't selected by every query that calls applySpecialFriendlyOverride
+// (buildScorecards doesn't need it for anything else), but match_date always
+// is - falls back to the year out of that instead of adding season to every
+// SELECT just for this.
+function yearOf(row) {
+  return row.season != null ? row.season : parseInt(row.match_date.slice(0, 4), 10);
+}
+
+// First played in 1807 - the 2007 fixture was celebrated as the 200th
+// playing, which this formula (year - 1807 + 1) puts one higher, at 201st;
+// the discrepancy is most likely a handful of wartime years where the
+// fixture was, in fact, missed despite the "unbroken since 1807" reputation,
+// which this simple year-based count has no way to know about. Flagged here
+// rather than silently trusted - if the club has the actual match-by-match
+// count, swap this formula for a lookup instead.
+const FIRST_COVENTRY_YEAR = 1807;
+
+const SPECIAL_FRIENDLY_CATEGORIES = [
+  {
+    // Barwell v Coventry & North Warwickshire - the oldest continuous club
+    // cricket fixture in the world (dating to the Napoleonic Wars).
+    // Opposition name has appeared as "Coventry & N Warwickshire", "Coventry
+    // & North Warwickshire CC 1st XI" and "...CC Sunday 1st XI" across
+    // seasons - matching on both words rather than a single fixed string
+    // covers all of them without also matching the unrelated "North
+    // Warwickshire" club. Team has also varied (e.g. "Sunday XI" in 2011) -
+    // always shown as "1st XI", who play it every year.
+    likePatterns: ['%Coventry%', '%Warwickshire%'],
+    test: (opp) => /coventry.*warwickshire/i.test(opp || ''),
+    teamName: '1st XI',
+    category: 'Cup',
+    displayType: 'Oldest Fixture',
+    // Separate from displayType (the constant label used for filtering/
+    // grouping - see site/fixtures.html's activeTypeFilter/specialTypeLink)
+    // so a specific year's count never breaks the "link to every playing of
+    // this fixture" behaviour there.
+    detail: (row) => String(yearOf(row) - FIRST_COVENTRY_YEAR + 1),
+    oppositionName: 'Coventry & North Warwickshire CC',
+    // Every recorded year of this fixture is played at Barwell except 2011,
+    // where home_or_away simply wasn't captured by the historic scrape (null,
+    // not really "Away") - filled in here rather than left to render as
+    // Away by default. Only fills a genuine gap, doesn't overwrite a real
+    // recorded value, in case the fixture is ever actually played away.
+    homeOrAway: 'H',
+  },
+  {
+    // Barwell v Earl Shilton for the Albert Lord - a separate long-running
+    // friendly, distinct from the Coventry fixture above.
+    likePatterns: ['%Albert Lord%'],
+    test: (opp) => /albert lord/i.test(opp || ''),
+    category: 'Cup',
+    displayType: 'Albert Lord',
+    oppositionName: 'Earl Shilton',
+  },
+];
+
+function findSpecialFriendlyCategory(oppositionName) {
+  return SPECIAL_FRIENDLY_CATEGORIES.find((c) => c.test(oppositionName));
+}
+
+// Mutates and returns row: applies the matching category's team/category/
+// opposition-name/home_or_away overrides, if any, and always sets
+// display_type (equal to the (possibly just-overridden) competition_type
+// for every other row) so callers never need their own fallback logic.
+// display_label is the fuller text actually shown in the Type column/
+// scorecard subtitle - same as display_type except for a category with a
+// `detail` (e.g. "Oldest Fixture (219)") - kept separate so filtering/
+// linking (which needs one constant value per category, not one that
+// changes every year) can still key off the plain display_type.
+function applySpecialFriendlyOverride(row) {
+  const special = findSpecialFriendlyCategory(row.opposition_name);
+  if (special) {
+    if (special.teamName) row.team_name = special.teamName;
+    row.competition_type = special.category;
+    if (special.oppositionName) row.opposition_name = special.oppositionName;
+    if (special.homeOrAway && !row.home_or_away) row.home_or_away = special.homeOrAway;
+  }
+  row.display_type = (special && special.displayType) || row.competition_type;
+  row.display_label = special && special.detail
+    ? `${row.display_type} (${special.detail(row)})`
+    : row.display_type;
+  return row;
+}
+
 function writeJson(relPath, data) {
   const fullPath = path.join(OUT_DIR, relPath);
   fs.mkdirSync(path.dirname(fullPath), { recursive: true });
@@ -64,6 +156,7 @@ function buildMatches(db) {
     .all();
 
   const matches = rows.map((r) => {
+    applySpecialFriendlyOverride(r);
     const usInnings = r.us_innings_id ? { id: r.us_innings_id, runs: r.us_runs, wickets: r.us_wickets } : null;
     const oppInnings = r.opp_innings_id ? { id: r.opp_innings_id, runs: r.opp_runs, wickets: r.opp_wickets } : null;
     return {
@@ -75,6 +168,15 @@ function buildMatches(db) {
       opp: r.opposition_name,
       venue: r.home_or_away,
       comp: r.competition_type,
+      // Same as comp except for the couple of special friendlies folded into
+      // "Cup" - this carries their own name for display (the Type column),
+      // while comp/competition_type stays "Cup" for filtering/grouping.
+      type: r.display_type,
+      // What the Type column actually renders as text - same as `type`
+      // except for a per-year detail like "Oldest Fixture (219th)" - see
+      // applySpecialFriendlyOverride's own comment for why this has to be a
+      // separate field rather than folded into `type` itself.
+      typeLabel: r.display_label,
       result: r.result,
       resultSummary: describeResult(r.result, usInnings, oppInnings),
       // Historic matches never carry a result (the historic xlsx exports don't
@@ -101,12 +203,13 @@ function buildScorecards(db) {
       `SELECT id, source, play_cricket_match_id, match_date, match_time, team_name, opposition_name, venue,
        home_or_away, competition_name, competition_type, result, result_description, our_total, opposition_total
        FROM matches
-       WHERE result IS NOT NULL OR id IN (SELECT match_id FROM innings)`
+       WHERE (result IS NOT NULL OR id IN (SELECT match_id FROM innings))`
     )
     .all();
 
   let count = 0;
   for (const match of playedMatches) {
+    applySpecialFriendlyOverride(match);
     const usInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 1').get(match.id);
     const oppInnings = db.prepare('SELECT * FROM innings WHERE match_id = ? AND is_us = 0').get(match.id);
     match.resultSummary = describeResult(match.result, usInnings, oppInnings);
@@ -221,8 +324,10 @@ function buildBattingRows(db) {
   // distinct matches per player - match_public_id is the one exposed in
   // scorecard links, see publicMatchId() above for why they need to differ.
   for (const r of rows) {
+    applySpecialFriendlyOverride(r);
     r.match_public_id = publicMatchId(r);
     delete r.play_cricket_match_id;
+    delete r.display_type; delete r.display_label; // display-only, not read anywhere off this row shape
   }
   writeJson('batting.json', rows);
   return rows.length;
@@ -246,8 +351,10 @@ function buildBowlingRows(db) {
     )
     .all(...params);
   for (const r of rows) {
+    applySpecialFriendlyOverride(r);
     r.match_public_id = publicMatchId(r);
     delete r.play_cricket_match_id;
+    delete r.display_type; delete r.display_label; // display-only, not read anywhere off this row shape
   }
   writeJson('bowling.json', rows);
   return rows.length;
@@ -266,13 +373,19 @@ function buildFieldingRows(db) {
   const { clause, params } = excludedPlayersClause('p.name');
   const rows = db
     .prepare(
-      `SELECT fp.player_id, fp.catches, fp.stumpings, m.id AS match_id, m.team_name, m.season, m.competition_type
+      `SELECT fp.player_id, fp.catches, fp.stumpings, m.id AS match_id, m.team_name, m.season, m.competition_type,
+       m.opposition_name
        FROM fielding_performances fp
        JOIN matches m ON m.id = fp.match_id
        JOIN players p ON p.id = fp.player_id
        WHERE ${clause}`
     )
     .all(...params);
+  for (const r of rows) {
+    applySpecialFriendlyOverride(r);
+    delete r.opposition_name;
+    delete r.display_type; delete r.display_label; // display-only, not read anywhere off this row shape
+  }
   writeJson('fielding.json', rows);
   return rows.length;
 }

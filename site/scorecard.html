@@ -360,7 +360,7 @@ function renderHeader(match, usInnings, oppInnings, batting, bowling){
     `${ourName} <span class="vs">v</span> ${match.opposition_name}`;
   document.getElementById('matchMeta').textContent =
     [formatDate(match.match_date), match.home_or_away === 'H' ? 'Home' : 'Away',
-     match.competition_type, match.competition_name].filter(Boolean).join(' · ');
+     match.display_label || match.display_type || match.competition_type, match.competition_name].filter(Boolean).join(' · ');
   const pcLogoLink = document.getElementById('pcLogoLink');
   if (match.playCricketUrl) {
     pcLogoLink.href = match.playCricketUrl;

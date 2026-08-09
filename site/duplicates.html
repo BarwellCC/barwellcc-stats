@@ -100,13 +100,7 @@
   <h2>Needs review</h2>
   <div id="candidates" class="card"><div class="loading">Loading…</div></div>
 
-  <h2>Suspicious names</h2>
-  <p class="subtitle" style="margin: -4px 0 10px;">
-    Player records that don't look like a real, complete name — a bare
-    surname, or just an initial — and have no other player on file to
-    plausibly match against. A record with a plausible match instead shows
-    up in "Needs review" above.
-  </p>
+  <h2>Incomplete names</h2>
   <div id="suspicious" class="card"><div class="loading">Loading…</div></div>
 
   <h2>Already merged</h2>
@@ -207,7 +201,7 @@ Promise.all([
 
   const suspiciousEl = document.getElementById('suspicious');
   if (suspicious.length === 0) {
-    suspiciousEl.innerHTML = '<div class="empty">No suspicious names found right now.</div>';
+    suspiciousEl.innerHTML = '<div class="empty">No incomplete names found right now.</div>';
   } else {
     // A suspicious name with a plausible candidate is promoted into
     // "Needs review" above instead (see scripts/buildStatic.js) - anything
