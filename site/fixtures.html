@@ -264,14 +264,20 @@
   .comp-pill a{ color: var(--accent); text-decoration: none; }
   .comp-pill a:hover{ text-decoration: underline; }
 
-  /* Venue and Fixture Type columns dropped on mobile - Venue folds into the
-     Opposition cell instead as "(H)"/"(A)" (see .venue-inline below), and
-     Type is already filterable via the dropdown above. Restored at the
-     desktop breakpoint below, where there's room for a dedicated column
-     each. */
+  /* Time, Venue and Fixture Type columns dropped on mobile to give
+     Opposition more room - Venue folds into the Opposition cell instead as
+     "(H)"/"(A)" (see .venue-inline below), Time is dropped outright (kept
+     on the scorecard it links to), and Type is already filterable via the
+     dropdown above. Restored at the desktop breakpoint below, where
+     there's room for a dedicated column each. */
+  #fixturesTable th:nth-child(2), #fixturesTable td:nth-child(2),
   #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4),
   #fixturesTable th:nth-child(5), #fixturesTable td:nth-child(5){ display:none; }
   .venue-inline{ color: var(--ink-soft); font-weight: 600; margin-left: 4px; }
+  /* Date reads as a shorter dd/mm/yyyy on mobile (no Time column to also
+     carry a full "Sat 18 Apr 2026" alongside) - full weekday/month name
+     restored at the desktop breakpoint below. */
+  .date-long{ display:none; }
   .result-pill{
     display:inline-flex; align-items:center; justify-content:center;
     width: 20px; height:20px; border-radius: 5px; font-size: 11px; font-weight: 700;
@@ -322,9 +328,12 @@
 
     .score-text{ display:inline; }
     td.opp{ white-space: nowrap; }
+    #fixturesTable th:nth-child(2), #fixturesTable td:nth-child(2),
     #fixturesTable th:nth-child(4), #fixturesTable td:nth-child(4),
     #fixturesTable th:nth-child(5), #fixturesTable td:nth-child(5){ display:table-cell; }
     .venue-inline{ display:none; }
+    .date-long{ display:inline; }
+    .date-short{ display:none; }
 
     .section-label{ font-size: 13px; letter-spacing: 0.12em; }
     table{ font-size: 13.5px; }
@@ -413,6 +422,14 @@ function formatDate(iso){
   return `${dayNames[dt.getUTCDay()]} ${d} ${monthNames[m-1]} ${y}`;
 }
 
+// Mobile-only shorthand (see .date-short/.date-long) - no Time column
+// alongside it there, so the weekday/month name Date normally carries isn't
+// worth the width; dd/mm/yyyy reads unambiguously without them.
+function formatDateShort(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+}
+
 // A handful of historic matches carry a garbled source time (25:00/25:30 -
 // not a real hour of the day, a scraper-side parsing quirk) - treat those
 // the same as a genuinely missing time rather than showing a broken value.
@@ -477,7 +494,7 @@ function renderTable(data, headEl, bodyEl){
         ? `<a href="${specialTypeLink(r.type)}">${r.typeLabel}</a>`
         : r.type;
       return `<tr class="${hasResult ? 'completed' : 'upcoming'}" data-sc="${r.sc}">
-        <td>${formatDate(r.date)}</td>
+        <td><span class="date-short">${formatDateShort(r.date)}</span><span class="date-long">${formatDate(r.date)}</span></td>
         <td>${formatTime(r.time)}</td>
         <td class="opp">${r.opp}<span class="venue-inline">(${r.venue === 'H' ? 'H' : 'A'})</span></td>
         <td><span class="venue-pill">${r.venue === 'H' ? 'Home' : 'Away'}</span></td>
