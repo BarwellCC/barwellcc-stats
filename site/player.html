@@ -338,10 +338,15 @@
     .hs-tile{ flex: initial; }
 
     .search-card{ padding: 22px 24px; }
-    .filter-row{ flex-direction: row; align-items:center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
-    .filter-group{ flex-direction: row; align-items:center; gap:8px; }
-    .filter-group.season-group{ margin-left: auto; }
-    .msel-btn{ width:auto; min-width:170px; }
+    .filter-row{ flex-direction: row; align-items:center; flex-wrap: wrap; gap: 16px; }
+    /* Equal-share flex instead of intrinsic (label + min-width) sizing, so
+       the three/four dropdowns fill the search card evenly on desktop
+       rather than clustering narrow on the left with dead space to the
+       right - min-width keeps a group from getting squeezed illegibly
+       narrow before flex-wrap kicks in and drops it to its own line. */
+    .filter-group{ flex-direction: row; align-items:center; gap:8px; flex: 1 1 200px; }
+    .filter-group .msel{ flex: 1 1 auto; min-width: 0; }
+    .msel-btn{ width:100%; min-width:0; }
     #teamSelect .msel-btn{ min-width: 220px; }
 
     table{ font-size: 13.5px; }
