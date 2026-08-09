@@ -214,24 +214,6 @@
   .msel-item-label{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .msel-only{ flex-shrink:0; }
 
-  /* ---- Single-select pick list (Team, Season) ---- */
-  .pick{
-    width: 100%; font-family: 'Inter'; font-size: 16px; font-weight: 600;
-    padding: 9px 30px 9px 12px; border-radius: 6px; border: 1px solid var(--line-strong);
-    background: var(--card); color: var(--ink); cursor: pointer; appearance: none;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%235B5548"/></svg>');
-    background-repeat: no-repeat; background-position: right 12px center;
-  }
-  .pick:hover{ border-color: var(--gold-hover); }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]) .pick{
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
-    }
-  }
-  :root[data-theme="dark"] .pick{
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23A3A093"/></svg>');
-  }
-
   /* ---- Section / table card ---- */
   .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
   .section-label{
@@ -332,8 +314,6 @@
     .filter-group{ flex-direction: row; align-items:center; gap:8px; }
     .filter-group.season-group{ margin-left: auto; }
     .msel-btn{ width:auto; min-width:170px; }
-    .pick{ width:auto; font-size: 14px; }
-    #teamPick{ min-width: 220px; }
 
     .score-text{ display:inline; }
     td.opp{ white-space: nowrap; }
@@ -375,7 +355,10 @@
     <div class="filter-row">
       <div class="filter-group">
         <span class="filter-label">Team</span>
-        <select class="pick" id="teamPick"></select>
+        <div class="msel" id="teamSelect">
+          <button type="button" class="msel-btn"><span class="msel-label">All</span><span class="msel-arrow">▾</span></button>
+          <div class="msel-panel"></div>
+        </div>
       </div>
 
       <div class="filter-group">
@@ -590,14 +573,15 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
 }
 
 const compOptions = ["League", "Cup", "Friendly"];
-let compMsel, seasonMsel;
+let compMsel, seasonMsel, teamMsel;
 let seasonOptions = [];
+let teamOptions = [];
 let allMatches = [];
 // Set from the `type` URL param on load (see init()) - kept as JS state
 // rather than re-read from the URL on every filter pass, so changing Team
 // or Fixture Type can explicitly drop it (a "show me only Oldest Fixture"
 // view stops making sense the moment you move off 1st XI/Cup - see the
-// teamPick/compMsel change handlers in init()).
+// teamMsel/compMsel change handlers below).
 let activeTypeFilter = null;
 
 // URL-only power filter, no UI control - lets a specific fixture (e.g. the
@@ -633,11 +617,11 @@ function applyCompFilter(selectedComps){
 }
 
 function loadFixtures(){
-  const team = document.getElementById('teamPick').value;
+  const teams = teamMsel.selected;
   const seasons = seasonMsel.selected.map(Number);
   const oppSearch = (oppSearchParam() || '').toLowerCase();
-  fixtures = seasons.length === 0 ? [] : allMatches
-    .filter(m => m.team === team && seasons.includes(m.season))
+  fixtures = (teams.length === 0 || seasons.length === 0) ? [] : allMatches
+    .filter(m => teams.includes(m.team) && seasons.includes(m.season))
     .filter(m => !oppSearch || m.opp.toLowerCase().includes(oppSearch))
     .filter(m => !activeTypeFilter || m.type === activeTypeFilter)
     .map(m => ({
@@ -663,18 +647,21 @@ function byTeamOrder(a, b){
 async function loadTeamsAndSeasons(){
   allMatches = await fetch('data/matches.json').then(r => r.json());
 
-  // Sunday XI dropped as a browsable team here - not tracked closely enough
-  // to be worth surfacing on the public fixtures list.
-  const teams = [...new Set(allMatches.map(m => m.team))].filter(t => t !== 'Sunday XI').sort(byTeamOrder);
+  teamOptions = [...new Set(allMatches.map(m => m.team))].sort(byTeamOrder);
   seasonOptions = [...new Set(allMatches.map(m => m.season))].sort((a, b) => b - a).map(String);
   const latestSeason = seasonOptions[0]; // sorted newest-first above
 
-  const teamPick = document.getElementById('teamPick');
-  teamPick.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join('');
-
   const params = new URLSearchParams(location.search);
-  const teamParam = params.get('team');
-  teamPick.value = teamParam && teams.includes(teamParam) ? teamParam : (teams.includes('1st XI') ? '1st XI' : teams[0]);
+
+  const teamSel = parseListParam(params, 'team', teamOptions)
+    || (teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1));
+  teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
+    // Changing Team away from the canonical 1st-XI-only view a
+    // specialTypeLink() click landed on makes the type filter meaningless -
+    // drop it rather than silently keep narrowing to a fixture that's no
+    // longer visible under the new Team selection.
+    options: teamOptions, selected: teamSel, onChange: () => { activeTypeFilter = null; loadFixtures(); syncUrl(); }
+  });
 
   // "all" is a shorthand for "every season" - shorter in a URL than
   // spelling out all 18+ years (see specialTypeLink()), and unambiguous
@@ -692,8 +679,13 @@ async function loadTeamsAndSeasons(){
 // bookmarked/shared as a link that reproduces the same results on load.
 function syncUrl(){
   const params = new URLSearchParams();
-  const team = document.getElementById('teamPick').value;
-  if (team) params.set('team', team);
+  if (teamMsel && teamMsel.selected.length){
+    // Same reasoning as season below: the default a fresh load falls back
+    // to on its own is 1st XI alone, not every team, so that's the only
+    // selection that can be safely left out of the URL.
+    const isDefaultTeam = teamMsel.selected.length === 1 && teamMsel.selected[0] === '1st XI';
+    if (!isDefaultTeam) params.set('team', teamMsel.selected.join(','));
+  }
   if (seasonMsel && seasonMsel.selected.length){
     const isAllSeasons = seasonMsel.selected.length === seasonOptions.length;
     // Omitting the param entirely (rather than writing it out) only works
@@ -818,8 +810,6 @@ document.getElementById('copyLinkBtn').addEventListener('click', async () => {
     options: compOptions, selected: compSel, onChange: (sel) => { activeTypeFilter = null; applyCompFilter(sel); syncUrl(); }
   });
   await loadTeamsAndSeasons();
-  // Same reasoning as compMsel's onChange above, for Team.
-  document.getElementById('teamPick').addEventListener('change', () => { activeTypeFilter = null; loadFixtures(); syncUrl(); });
   await loadFixtures();
   syncUrl();
 })();
