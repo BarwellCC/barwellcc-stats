@@ -56,10 +56,15 @@ const SPECIAL_FRIENDLY_CATEGORIES = [
     // seasons - matching on both words rather than a single fixed string
     // covers all of them without also matching the unrelated "North
     // Warwickshire" club. Team has also varied (e.g. "Sunday XI" in 2011) -
-    // always shown as "1st XI", who play it every year.
+    // always shown under its own "Oldest Fixture" team (site/fixtures.html's
+    // TEAM_ORDER, sorted after Sunday XI) rather than folded into whichever
+    // real team actually turned out - important enough on its own, and
+    // played by a mixed/select side rather than a fixed one XI, that the
+    // club wants it as its own filterable bucket, not blended into 1st XI's
+    // other stats.
     likePatterns: ['%Coventry%', '%Warwickshire%'],
     test: (opp) => /coventry.*warwickshire/i.test(opp || ''),
-    teamName: '1st XI',
+    teamName: 'Oldest Fixture',
     category: 'Cup',
     displayType: 'Oldest Fixture',
     // Separate from displayType (the constant label used for filtering/

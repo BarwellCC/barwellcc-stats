@@ -145,26 +145,18 @@
   .tab.active{ background: var(--pitch-green); border-color: var(--pitch-green); color: var(--cream); }
   .tab.active:hover{ color: var(--cream); }
 
-  /* ---- Blue plaque-style header, echoing the club's literal honours board
-     rather than a generic data table label ---- */
-  /* Horizontal padding matches thead th/tbody td exactly (8px mobile, 12px
-     desktop below) so the title/count line up with the Year and Score
-     columns rather than reading as a differently-inset banner. */
-  .table-header{
-    background: linear-gradient(135deg, var(--pitch-green), var(--pitch-green-dark));
-    color: var(--cream); padding: 13px 8px; border-radius: var(--radius) var(--radius) 0 0;
-    display:flex; align-items:baseline; justify-content:space-between; gap: 10px;
+  /* ---- Section title + count, sitting above the card - same
+     .results-label/.section-label/.results-count pattern as Fixtures/
+     Averages/Stats, rather than a colour banner attached to the card. ---- */
+  .results-label{ display:flex; align-items:baseline; justify-content: space-between; margin: 0 2px 8px; }
+  .section-label{
+    font-family: 'Fraunces', serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin: 0;
   }
-  .table-header h2{
-    font-family:'Fraunces', serif; font-weight:700; font-size: 16px; margin:0; letter-spacing: 0.01em;
-  }
-  .table-header .count{
-    font-family:'Inter'; font-weight:700; font-size:11px; color: var(--brass-bright);
-    text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap;
-  }
+  .results-count{ font-size: 12px; color: var(--ink-soft); }
   .card{
-    background: var(--card); border: 1px solid var(--line); border-top:none;
-    border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 1px 2px rgba(32,30,24,0.04);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: 0 1px 2px rgba(32,30,24,0.04);
     overflow:hidden; margin-bottom: 28px;
   }
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -184,6 +176,13 @@
   .dup-flag{ display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--gold-hover); cursor: default; }
   a.player-link{ color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid transparent; }
   a.player-link:hover{ color: var(--accent); border-color: var(--accent-underline); }
+
+  /* ---- Mobile-only shorthand: first-initial player names (see
+     .name-short/.name-full) and no Team column, so Year/Player/Opposition/
+     Score all fit a phone width without the table needing to scroll. Same
+     pattern as fixtures.html's .date-short/.date-long. ---- */
+  .name-full{ display:none; }
+  table.board-table th:nth-child(3), table.board-table td:nth-child(3){ display:none; }
 
   tbody tr[data-sc]{ cursor: pointer; }
   tbody tr[data-sc]:hover td{ background: var(--head-bg); }
@@ -212,11 +211,13 @@
     .nav-flag-wrap.visible{ display:flex; }
     .tabs{ gap:6px; }
     .tab{ flex: none; padding: 8px 18px; }
-    .table-header{ padding: 15px 12px; }
-    .table-header h2{ font-size: 17px; }
+    .section-label{ font-size: 13px; letter-spacing: 0.12em; }
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 12px; }
     tbody td{ padding: 10px 12px; }
+    table.board-table th:nth-child(3), table.board-table td:nth-child(3){ display:table-cell; }
+    .name-full{ display:inline; }
+    .name-short{ display:none; }
   }
 </style>
 </head>
@@ -249,22 +250,22 @@
   </div>
 
   <div id="battingSection">
-    <div class="table-header">
-      <h2>Saturday League Hundreds</h2>
-      <span class="count" id="battingCount"></span>
+    <div class="results-label">
+      <p class="section-label">Saturday League Hundreds</p>
+      <span class="results-count" id="battingCount"></span>
     </div>
-    <div class="card"><div class="table-scroll"><table>
+    <div class="card"><div class="table-scroll"><table class="board-table">
       <thead><tr><th>Year</th><th>Player</th><th>Team</th><th>Opposition</th><th class="num">Score</th></tr></thead>
       <tbody id="battingBody"><tr class="no-records"><td colspan="5">Loading…</td></tr></tbody>
     </table></div></div>
   </div>
 
   <div id="bowlingSection" style="display:none">
-    <div class="table-header">
-      <h2>Saturday League 5-Wicket Hauls</h2>
-      <span class="count" id="bowlingCount"></span>
+    <div class="results-label">
+      <p class="section-label">Saturday League 5-Wicket Hauls</p>
+      <span class="results-count" id="bowlingCount"></span>
     </div>
-    <div class="card"><div class="table-scroll"><table>
+    <div class="card"><div class="table-scroll"><table class="board-table">
       <thead><tr><th>Year</th><th>Player</th><th>Team</th><th>Opposition</th><th class="num">Figures</th></tr></thead>
       <tbody id="bowlingBody"><tr class="no-records"><td colspan="5">Loading…</td></tr></tbody>
     </table></div></div>
@@ -315,10 +316,19 @@ function fiveWicketHauls(bowlingRows){
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Mobile-only shorthand (see .name-short/.name-full) - "Lenny Jones" ->
+// "L Jones", so the Player column stays narrow enough (alongside dropping
+// Team entirely) to fit a phone width without the table scrolling.
+function shortenName(name){
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  return `${parts[0][0]} ${parts.slice(1).join(' ')}`;
+}
+
 function rowHtml(scoreCellHtml, r, flaggedNames){
   return `<tr data-sc="scorecard.html?id=${r.matchId}">
     <td>${r.year}</td>
-    <td><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}">${r.name}</a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
+    <td><a class="player-link" href="player.html?name=${encodeURIComponent(r.name)}"><span class="name-short">${shortenName(r.name)}</span><span class="name-full">${r.name}</span></a>${DuplicateFlags.badge(r.name, flaggedNames)}</td>
     <td>${r.team}</td>
     <td>${r.opp}${r.venue ? ` <span class="venue-tag">(${r.venue})</span>` : ''}</td>
     ${scoreCellHtml}

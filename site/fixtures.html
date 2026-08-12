@@ -325,6 +325,9 @@
     .filter-group{ flex-direction: row; align-items:center; gap:8px; flex: 1 1 200px; }
     .filter-group .msel{ flex: 1 1 auto; min-width: 0; }
     .msel-btn{ width:100%; min-width:0; }
+    #teamSelect .msel-btn{ min-width: 220px; }
+    /* Season intentionally left at the shared 170px default, same width as
+       Fixture Type - no ID-specific override here. */
 
     .score-text{ display:inline; }
     td.opp{ white-space: nowrap; }
@@ -411,6 +414,7 @@
 
 </div>
 
+<script src="js/filter-memory.js"></script>
 <script>
 let fixtures = [];
 
@@ -540,42 +544,14 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   let state = new Set(selected);
 
   function renderLabel(){
+    // size===1 checked before size===options.length so a single-option
+    // dropdown (e.g. Fixture Type narrowed to just "Cup" - see
+    // compsForTeams()) shows that option's name, not "All".
     if(state.size === 0) labelEl.textContent = labelForNone || 'All';
-    else if(state.size === options.length) labelEl.textContent = 'All';
     else if(state.size === 1) labelEl.textContent = [...state][0];
+    else if(state.size === options.length) labelEl.textContent = 'All';
     else labelEl.textContent = state.size + ' selected';
   }
-
-  panel.innerHTML = '';
-  const actions = document.createElement('div');
-  actions.className = 'msel-actions';
-  actions.innerHTML = '<button type="button" class="msel-action" data-a="all">Select all</button><button type="button" class="msel-action" data-a="clear">Clear</button>';
-  panel.appendChild(actions);
-  actions.querySelector('[data-a="all"]').addEventListener('click', (e) => { e.stopPropagation(); options.forEach(o=>state.add(o)); sync(); });
-  actions.querySelector('[data-a="clear"]').addEventListener('click', (e) => { e.stopPropagation(); state.clear(); sync(); });
-
-  options.forEach(opt => {
-    const label = document.createElement('label');
-    label.className = 'msel-item';
-    label.innerHTML = `<input type="checkbox" value="${opt}"> <span class="msel-item-label">${opt}</span><button type="button" class="msel-action msel-only">Only</button>`;
-    panel.appendChild(label);
-    const cb = label.querySelector('input');
-    cb.checked = state.has(opt);
-    cb.addEventListener('change', () => {
-      if (cb.checked) state.add(opt); else state.delete(opt);
-      renderLabel();
-      onChange && onChange([...state]);
-    });
-    // preventDefault stops the label's native click-forwards-to-checkbox
-    // behaviour, which would otherwise also toggle the checkbox this sits
-    // beside every time "Only" is clicked.
-    label.querySelector('.msel-only').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      state = new Set([opt]);
-      sync();
-    });
-  });
 
   function sync(){
     panel.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = state.has(cb.value); });
@@ -583,6 +559,44 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
     onChange && onChange([...state]);
   }
 
+  // Rebuilds the checkbox list from the current `options` - split out of the
+  // constructor so updateOptions() (see below) can call it again when the
+  // Fixture Type list narrows to whatever the selected Team(s) actually have
+  // results for, without needing a whole new initMultiSelect instance.
+  function buildPanel(){
+    panel.innerHTML = '';
+    const actions = document.createElement('div');
+    actions.className = 'msel-actions';
+    actions.innerHTML = '<button type="button" class="msel-action" data-a="all">Select all</button><button type="button" class="msel-action" data-a="clear">Clear</button>';
+    panel.appendChild(actions);
+    actions.querySelector('[data-a="all"]').addEventListener('click', (e) => { e.stopPropagation(); options.forEach(o=>state.add(o)); sync(); });
+    actions.querySelector('[data-a="clear"]').addEventListener('click', (e) => { e.stopPropagation(); state.clear(); sync(); });
+
+    options.forEach(opt => {
+      const label = document.createElement('label');
+      label.className = 'msel-item';
+      label.innerHTML = `<input type="checkbox" value="${opt}"> <span class="msel-item-label">${opt}</span><button type="button" class="msel-action msel-only">Only</button>`;
+      panel.appendChild(label);
+      const cb = label.querySelector('input');
+      cb.checked = state.has(opt);
+      cb.addEventListener('change', () => {
+        if (cb.checked) state.add(opt); else state.delete(opt);
+        renderLabel();
+        onChange && onChange([...state]);
+      });
+      // preventDefault stops the label's native click-forwards-to-checkbox
+      // behaviour, which would otherwise also toggle the checkbox this sits
+      // beside every time "Only" is clicked.
+      label.querySelector('.msel-only').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        state = new Set([opt]);
+        sync();
+      });
+    });
+  }
+
+  buildPanel();
   renderLabel();
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -591,7 +605,22 @@ function initMultiSelect(root, {options, selected, labelForNone, onChange}){
   });
   document.addEventListener('click', (e) => { if (!root.contains(e.target)) root.classList.remove('open'); });
 
-  return { get selected(){ return [...state]; } };
+  return {
+    get selected(){ return [...state]; },
+    // Swaps in a new option list (e.g. Fixture Type narrowed to whatever the
+    // selected Team(s) have results for). Keeps whichever of the current
+    // selection is still valid; if that empties it out entirely (the whole
+    // previous selection became unavailable), falls back to selecting every
+    // remaining option rather than silently showing zero results.
+    updateOptions(newOptions){
+      options = newOptions;
+      const kept = [...state].filter((v) => options.includes(v));
+      state = new Set(kept.length ? kept : options);
+      buildPanel();
+      renderLabel();
+      onChange && onChange([...state]);
+    },
+  };
 }
 
 const compOptions = ["League", "Cup", "Friendly"];
@@ -615,16 +644,23 @@ function oppSearchParam(){
   return new URLSearchParams(location.search).get('opp');
 }
 
+// Team each special friendly is recorded/shown under (see
+// scripts/buildStatic.js's SPECIAL_FRIENDLY_CATEGORIES - Oldest Fixture
+// gets its own "Oldest Fixture" team, Albert Lord keeps its real recorded
+// team) - kept in sync with that file by hand, there's no shared source of
+// truth between the build step and this static page.
+const specialTypeTeam = { 'Oldest Fixture': 'Oldest Fixture', 'Albert Lord': '1st XI' };
+
 // Builds a link for the Type column's own "Oldest Fixture"/"Albert Lord"
-// links in renderTable. Always forces Team=1st XI, Fixture Type=Cup and
-// every season - these named fixtures only ever happen under 1st XI/Cup, so
-// the link is meaningless under any other combination, and always jumping
-// to the canonical view is simpler (and easier to reason about) than trying
-// to layer onto whatever filters happened to be active when the row was
-// clicked.
+// links in renderTable. Always forces the matching Team, Fixture Type=Cup
+// and every season - these named fixtures only ever happen under that one
+// team/Cup combination, so the link is meaningless under any other
+// combination, and always jumping to the canonical view is simpler (and
+// easier to reason about) than trying to layer onto whatever filters
+// happened to be active when the row was clicked.
 function specialTypeLink(type){
   const params = new URLSearchParams();
-  params.set('team', '1st XI');
+  params.set('team', specialTypeTeam[type] || '1st XI');
   params.set('comp', 'Cup');
   params.set('season', 'all');
   params.set('type', type);
@@ -657,13 +693,24 @@ function loadFixtures(){
 // Matches scripts/teams.js's SENIOR_TEAMS order - plain alphabetical sort
 // puts "Midweek 2nd XI" before "Midweek XI" (digit sorts before letter),
 // which reads wrong since Midweek XI is the senior of the two sides.
-const TEAM_ORDER = ['1st XI', '2nd XI', '3rd XI', 'Midweek XI', 'Midweek 2nd XI', 'Sunday XI'];
+// "Oldest Fixture" isn't a real team (see scripts/buildStatic.js's
+// SPECIAL_FRIENDLY_CATEGORIES) - listed last, after every genuine team.
+const TEAM_ORDER = ['1st XI', '2nd XI', '3rd XI', 'Midweek XI', 'Midweek 2nd XI', 'Sunday XI', 'Oldest Fixture'];
 function byTeamOrder(a, b){
   const ia = TEAM_ORDER.indexOf(a), ib = TEAM_ORDER.indexOf(b);
   if (ia === -1 && ib === -1) return a.localeCompare(b);
   if (ia === -1) return 1;
   if (ib === -1) return -1;
   return ia - ib;
+}
+
+// Fixture Type options narrow to whichever ones the selected Team(s)
+// actually have a result under (e.g. "Oldest Fixture" only ever plays as
+// Cup - League/Friendly would just show "0 fixtures") - filtered from
+// compOptions rather than derived fresh from the data so the dropdown's
+// order always matches the canonical League/Cup/Friendly ordering.
+function compsForTeams(matches, teams){
+  return compOptions.filter((c) => matches.some((m) => teams.includes(m.team) && m.comp === c));
 }
 
 async function loadTeamsAndSeasons(){
@@ -675,15 +722,25 @@ async function loadTeamsAndSeasons(){
 
   const params = new URLSearchParams(location.search);
 
-  const teamSel = parseListParam(params, 'team', teamOptions)
-    || (teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1));
+  const teamSel = FilterMemory.resolveList(params, 'team', teamOptions,
+    teamOptions.includes('1st XI') ? ['1st XI'] : teamOptions.slice(0, 1));
   teamMsel = initMultiSelect(document.getElementById('teamSelect'), {
     // Changing Team away from the canonical 1st-XI-only view a
     // specialTypeLink() click landed on makes the type filter meaningless -
     // drop it rather than silently keep narrowing to a fixture that's no
     // longer visible under the new Team selection.
-    options: teamOptions, selected: teamSel, onChange: () => { activeTypeFilter = null; loadFixtures(); syncUrl(); }
+    options: teamOptions, selected: teamSel, onChange: (sel) => {
+      activeTypeFilter = null;
+      compMsel.updateOptions(compsForTeams(allMatches, sel));
+      loadFixtures();
+      syncUrl();
+    }
   });
+  // compMsel was built (in init(), before this function runs) against the
+  // full compOptions list - narrow it to the initial Team selection too, so
+  // the very first render is already consistent with what a Team change
+  // would produce, not just subsequent ones.
+  compMsel.updateOptions(compsForTeams(allMatches, teamMsel.selected));
 
   // "all" is a shorthand for "every season" - shorter in a URL than
   // spelling out all 18+ years (see specialTypeLink()), and unambiguous
@@ -691,7 +748,7 @@ async function loadTeamsAndSeasons(){
   const seasonParam = params.get('season');
   const seasonSel = seasonParam === 'all'
     ? seasonOptions
-    : parseListParam(params, 'season', seasonOptions) || [latestSeason];
+    : FilterMemory.resolveList(params, 'season', seasonOptions, [latestSeason]);
   seasonMsel = initMultiSelect(document.getElementById('seasonSelect'), {
     options: seasonOptions, selected: seasonSel, onChange: () => { loadFixtures(); syncUrl(); }
   });
@@ -728,6 +785,10 @@ function syncUrl(){
   if (activeTypeFilter) params.set('type', activeTypeFilter);
   const qs = params.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+
+  if (teamMsel) FilterMemory.save('team', teamMsel.selected);
+  if (seasonMsel) FilterMemory.save('season', seasonMsel.selected);
+  if (compMsel) FilterMemory.save('comp', compMsel.selected);
 }
 
 // ---- Horizontal-scroll hint for tables (shows a fade only when there's more to scroll) ----
@@ -801,13 +862,6 @@ Promise.all([
   });
 }).catch(() => {});
 
-function parseListParam(params, name, allOptions){
-  const raw = params.get(name);
-  if (!raw) return null;
-  const valid = raw.split(',').map(s => s.trim()).filter(v => allOptions.includes(v));
-  return valid.length ? valid : null;
-}
-
 document.getElementById('copyLinkBtn').addEventListener('click', async () => {
   const btn = document.getElementById('copyLinkBtn');
   try {
@@ -823,7 +877,7 @@ document.getElementById('copyLinkBtn').addEventListener('click', async () => {
 (async function init(){
   const params = new URLSearchParams(location.search);
   activeTypeFilter = params.get('type');
-  const compSel = parseListParam(params, 'comp', compOptions) || compOptions;
+  const compSel = FilterMemory.resolveList(params, 'comp', compOptions, compOptions);
   compMsel = initMultiSelect(document.getElementById('compSelect'), {
     // Changing Fixture Type away from the canonical Cup-only view a
     // specialTypeLink() click landed on makes the type filter meaningless -

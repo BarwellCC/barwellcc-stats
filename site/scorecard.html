@@ -147,6 +147,17 @@
   }
   .match-teams{ font-family: 'Fraunces', serif; font-weight: 600; font-size: 19px; line-height:1.3; position:relative; }
   .match-teams .vs{ color: var(--brass-bright); font-size: 13px; font-weight: 700; margin: 0 6px; text-transform:uppercase; }
+  /* Each team name wraps as one unit - if the full "Us v Them" line doesn't
+     fit, the break lands between a name and "v", never mid-name (e.g.
+     "Kegworth Town CC 1st" / "XI" splitting across lines on a phone). The
+     spaces *within* each name are non-breaking (see renderHeader()), not
+     white-space:nowrap on the span - nowrap would let a genuinely very long
+     name (e.g. "Loughborough Charnwood Old Boys CC 1sts") overflow past the
+     edge and get clipped by .match-header's overflow:hidden instead of
+     wrapping. overflow-wrap here is the fallback for exactly that case: it
+     only breaks a name mid-word if the name alone is still too wide for its
+     own line. */
+  .match-teams{ overflow-wrap: break-word; }
   .match-meta{ font-size: 12px; color: rgba(246,241,228,0.72); margin-top: 5px; position:relative; }
   .score-summary{ display:flex; flex-direction:column; gap: 10px; margin-top: 16px; position:relative; }
   .score-block{ display:flex; align-items:baseline; justify-content:space-between; padding-bottom: 8px; border-bottom: 1px solid rgba(246,241,228,0.16); }
@@ -235,6 +246,16 @@
   .note{ font-size: 11.5px; color: var(--ink-soft); text-align:center; margin-top: -8px; margin-bottom: 24px; line-height:1.5; }
   .page-message{ text-align:center; color: var(--ink-soft); font-size: 14px; padding: 40px 16px; }
 
+  /* Mobile-only: drop 4s and 6s from the Batting table (SR is kept visible
+     by request) so Player/How Out/R/B/SR fit a phone width without
+     scrolling - Bowling's column set doesn't have the same overflow, so
+     this is scoped to #battingHead/#battingBody only. Every row (including
+     Extras/Total) renders one real <td> per column with no colspan, so
+     nth-child(5)/(6) lines up the same way for all of them. */
+  #battingHead th:nth-child(5), #battingBody td:nth-child(5),
+  #battingHead th:nth-child(6), #battingBody td:nth-child(6){ display:none; }
+  .name-full{ display:none; }
+
   /* ============ LARGER SCREENS ============ */
   @media (min-width: 640px){
     .page{ padding: 0 20px 64px; }
@@ -251,6 +272,10 @@
     table{ font-size: 13.5px; }
     thead th{ font-size: 11.5px; padding: 12px 10px; }
     tbody td{ padding: 9px 10px; }
+    #battingHead th:nth-child(5), #battingBody td:nth-child(5),
+    #battingHead th:nth-child(6), #battingBody td:nth-child(6){ display:table-cell; }
+    .name-full{ display:inline; }
+    .name-short{ display:none; }
     .note{ font-size: 12.5px; }
   }
 </style>
@@ -353,11 +378,19 @@ const bowlingCols = [
   {key:"runs", label:"R"}, {key:"wkts", label:"W"}, {key:"avg", label:"Avg"}, {key:"econ", label:"Econ"},
 ];
 
+// Non-breaking spaces within a team name (not white-space:nowrap - see the
+// .match-teams .team-name CSS comment) so "Kegworth Town CC 1st XI" wraps as
+// one unit rather than splitting at whichever internal space happens to
+// land on the line boundary.
+function noBreak(name){
+  return name.replace(/ /g, ' ');
+}
+
 function renderHeader(match, usInnings, oppInnings, batting, bowling){
   const ourName = `Barwell CC ${match.team_name}`;
   document.title = `Fixtures - ${ourName} v ${match.opposition_name}`;
   document.getElementById('matchTeams').innerHTML =
-    `${ourName} <span class="vs">v</span> ${match.opposition_name}`;
+    `<span class="team-name">${noBreak(ourName)}</span> <span class="vs">v</span> <span class="team-name">${noBreak(match.opposition_name)}</span>`;
   document.getElementById('matchMeta').textContent =
     [formatDate(match.match_date), match.home_or_away === 'H' ? 'Home' : 'Away',
      match.display_label || match.display_type || match.competition_type, match.competition_name].filter(Boolean).join(' · ');
@@ -421,6 +454,16 @@ function renderHeader(match, usInnings, oppInnings, batting, bowling){
   }
 }
 
+// Mobile-only shorthand (see .name-short/.name-full, same pattern as
+// honours.html) - "Lenny Jones" -> "L Jones", freeing up enough width in
+// the Player column (the widest one) for the rest of the Batting table's
+// mobile column-hiding above to actually close the gap to zero scroll.
+function shortenName(name){
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  return `${parts[0][0]} ${parts.slice(1).join(' ')}`;
+}
+
 // "Unsure" is Play-Cricket's own placeholder for a real player whose
 // identity the scorer didn't record (see scripts/buildStatic.js's
 // buildScorecards()) - shown with its real recorded figures like anyone
@@ -428,7 +471,7 @@ function renderHeader(match, usInnings, oppInnings, batting, bowling){
 // profile behind the name to link to.
 function nameCell(name){
   if (name === 'Unsure') return `<td class="name">${name}</td>`;
-  return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(name)}">${name}</a>${DuplicateFlags.badge(name, flaggedNames)}</td>`;
+  return `<td class="name"><a class="player-link" href="player.html?name=${encodeURIComponent(name)}"><span class="name-short">${shortenName(name)}</span><span class="name-full">${name}</span></a>${DuplicateFlags.badge(name, flaggedNames)}</td>`;
 }
 
 function renderBatting(batting, extras, teamTotal){
@@ -458,11 +501,16 @@ function renderBatting(batting, extras, teamTotal){
   // Historic innings never have extras or a team total recorded (see
   // scripts/parseScorecardPage.js) - skip these rows entirely rather than
   // showing an empty "Extras" line or a literal "null/null" total.
+  // Each row gets a real cell per column (no colspan) so it lines up 1:1
+  // with the 4s/6s columns the mobile-hide CSS above targets by position -
+  // a colspan cell doesn't occupy a fixed position, so nth-child hiding
+  // would silently miss it. The total figure sits in the SR column, which
+  // (unlike 4s/6s) stays visible on mobile, so it needs no extra handling.
   const extrasRow = extras.total_extras != null
-    ? `<tr class="extras-row"><td class="name">Extras</td><td class="how-out extras-detail">${extrasParts}</td><td colspan="4"></td><td>${extras.total_extras}</td></tr>`
+    ? `<tr class="extras-row"><td class="name">Extras</td><td class="how-out extras-detail">${extrasParts}</td><td></td><td></td><td></td><td></td><td>${extras.total_extras}</td></tr>`
     : '';
   const totalRow = teamTotal.runs != null
-    ? `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs != null ? `${teamTotal.overs} overs` : ''}</td><td colspan="4"></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`
+    ? `<tr class="total-row"><td class="name">Total</td><td class="how-out">${teamTotal.overs != null ? `${teamTotal.overs} overs` : ''}</td><td></td><td></td><td></td><td></td><td>${teamTotal.runs}/${teamTotal.wkts}</td></tr>`
     : '';
   document.getElementById("battingBody").innerHTML = rows + extrasRow + totalRow;
 }
